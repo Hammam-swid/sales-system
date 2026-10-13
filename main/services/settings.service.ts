@@ -9,6 +9,8 @@ export async function getSettings(): Promise<AppSettings> {
 
   return {
     storeName: values.get('store_name') ?? '',
+    storeAddress: values.get('store_address') ?? '',
+    storePhone: values.get('store_phone') ?? '',
     currency: values.get('currency') || 'USD',
     taxRate: Number.isFinite(taxRate) ? taxRate : 0,
     language: values.get('language') || 'ar'

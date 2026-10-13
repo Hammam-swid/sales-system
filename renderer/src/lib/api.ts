@@ -1,4 +1,4 @@
-import type { Api, IpcResult } from '../../../shared/ipc'
+import type { Api, ErrorCode, IpcResult } from '../../../shared/ipc'
 import { t } from '../i18n/ar'
 import { useAuthStore } from '../store/auth'
 
@@ -12,6 +12,15 @@ export const api: Api['invoke'] = async (channel, ...args) => {
   return result
 }
 
+// For these codes the main process sends the product name as the error detail.
+const CODES_WITH_SUBJECT: readonly ErrorCode[] = [
+  'INSUFFICIENT_STOCK',
+  'PRODUCT_UNAVAILABLE',
+  'RETURN_EXCEEDS'
+]
+
 export function errorText(result: Extract<IpcResult<unknown>, { ok: false }>): string {
-  return t.errors[result.code] ?? t.errors.INTERNAL
+  const message = t.errors[result.code] ?? t.errors.INTERNAL
+  const hasSubject = CODES_WITH_SUBJECT.includes(result.code) && result.error !== result.code
+  return hasSubject ? `${result.error}: ${message}` : message
 }

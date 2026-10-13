@@ -1,5 +1,6 @@
 import { PASSWORD_MIN_LENGTH } from '../../shared/ipc'
 import { USER_ROLES, type UserRole } from '../../shared/permissions'
+import { roundTo } from '../../shared/sales'
 import { AppError } from '../errors'
 
 // IPC payloads come from the renderer and are untyped at runtime, so every field is checked.
@@ -47,11 +48,6 @@ export function asAmount(value: unknown, field: string, decimals = 2, max = 1e9)
 export function asOneOf<T extends string>(value: unknown, options: readonly T[], field: string): T {
   if (!options.includes(value as T)) throw new AppError('VALIDATION', field)
   return value as T
-}
-
-export function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals
-  return Math.round((value + Number.EPSILON) * factor) / factor
 }
 
 export function asBoolean(value: unknown, field: string): boolean {

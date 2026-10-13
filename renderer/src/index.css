@@ -243,3 +243,78 @@
     }
   }
 }
+
+/* ------------------------------------------------------------------
+   Receipt printing (80mm thermal roll, also fine for "Print to PDF").
+   On screen the print host is hidden; on paper it is the only thing shown.
+------------------------------------------------------------------- */
+.print-host {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  html,
+  body {
+    height: auto;
+    background: #ffffff;
+  }
+
+  #root {
+    display: none;
+  }
+
+  .print-host {
+    display: block;
+  }
+}
+
+.receipt {
+  width: 72mm;
+  margin: 0 auto;
+  padding: 3mm 0 6mm;
+  color: #000000;
+  background: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.receipt-center {
+  text-align: center;
+}
+
+.receipt-title {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+.receipt-strong {
+  font-weight: 700;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.receipt-item {
+  margin-bottom: 2px;
+}
+
+.receipt-total {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 700;
+}
+
+.receipt-rule {
+  margin: 4px 0;
+  border-top: 1px dashed #000000;
+}

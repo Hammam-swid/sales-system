@@ -7,6 +7,7 @@ import {
   type StockMovementDto
 } from '../../shared/catalog'
 import { can } from '../../shared/permissions'
+import { roundTo } from '../../shared/sales'
 import type { SessionUser } from '../auth/session'
 import { getDataSource } from '../database/data-source'
 import {
@@ -26,8 +27,7 @@ import {
   asOneOf,
   asOptionalId,
   asOptionalText,
-  asText,
-  roundTo
+  asText
 } from './validation'
 
 const PRICE_DECIMALS = 2

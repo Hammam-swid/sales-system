@@ -13,6 +13,17 @@ import type {
   StockMovementDto
 } from './catalog'
 import type { UserRole } from './permissions'
+import type {
+  CheckoutRequest,
+  CustomerDto,
+  HeldSaleDto,
+  HoldSaleRequest,
+  ListSalesRequest,
+  ListSalesResponse,
+  ReturnSaleRequest,
+  ReturnSaleResponse,
+  SaleDto
+} from './sales'
 
 export interface TableInfo {
   name: string
@@ -84,6 +95,15 @@ export interface IpcChannels {
   'products:delete': { request: { id: number }; response: DeleteProductResponse }
   'products:adjustStock': { request: AdjustStockRequest; response: ProductDto }
   'products:movements': { request: { productId: number }; response: StockMovementDto[] }
+  'customers:list': { request: { search?: string }; response: CustomerDto[] }
+  'sales:checkout': { request: CheckoutRequest; response: SaleDto }
+  'sales:hold': { request: HoldSaleRequest; response: { id: number } }
+  'sales:held': { request: void; response: HeldSaleDto[] }
+  'sales:resumeHeld': { request: { id: number }; response: HeldSaleDto }
+  'sales:discardHeld': { request: { id: number }; response: null }
+  'sales:list': { request: ListSalesRequest; response: ListSalesResponse }
+  'sales:get': { request: { id: number }; response: SaleDto }
+  'sales:return': { request: ReturnSaleRequest; response: ReturnSaleResponse }
 }
 
 export type IpcChannel = keyof IpcChannels
@@ -107,7 +127,16 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'products:save',
   'products:delete',
   'products:adjustStock',
-  'products:movements'
+  'products:movements',
+  'customers:list',
+  'sales:checkout',
+  'sales:hold',
+  'sales:held',
+  'sales:resumeHeld',
+  'sales:discardHeld',
+  'sales:list',
+  'sales:get',
+  'sales:return'
 ]
 
 // Stable, language-neutral error codes; the renderer translates them for display.
@@ -126,6 +155,9 @@ export type ErrorCode =
   | 'CATEGORY_IN_USE'
   | 'CATEGORY_NESTING'
   | 'INSUFFICIENT_STOCK'
+  | 'PRODUCT_UNAVAILABLE'
+  | 'CUSTOMER_REQUIRED'
+  | 'RETURN_EXCEEDS'
   | 'INTERNAL'
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ErrorCode }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useSettingsStore } from '../../store/settings'
+import { PrintHost } from '../Receipt'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 
@@ -22,6 +23,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <PrintHost />
     </div>
   )
 }

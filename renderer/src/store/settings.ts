@@ -2,7 +2,14 @@ import { create } from 'zustand'
 import type { AppSettings } from '../../../shared/catalog'
 import { api } from '../lib/api'
 
-const DEFAULTS: AppSettings = { storeName: '', currency: 'USD', taxRate: 0, language: 'ar' }
+const DEFAULTS: AppSettings = {
+  storeName: '',
+  storeAddress: '',
+  storePhone: '',
+  currency: 'USD',
+  taxRate: 0,
+  language: 'ar'
+}
 
 interface SettingsState {
   settings: AppSettings

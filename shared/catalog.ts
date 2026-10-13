@@ -99,6 +99,8 @@ export interface StockMovementDto {
 
 export interface AppSettings {
   storeName: string
+  storeAddress: string
+  storePhone: string
   currency: string
   // Percentage, e.g. 15 for 15%.
   taxRate: number
