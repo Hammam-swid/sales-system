@@ -1,77 +1,66 @@
-import { useEffect, useState } from 'react'
-import type { AppInfo } from '../../shared/ipc'
+import { useEffect } from 'react'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AppShell } from './components/layout/AppShell'
+import { RequirePermission } from './components/RequirePermission'
+import { t } from './i18n/ar'
+import { BUILT_PATHS, NAV_ITEMS } from './navigation'
+import { ComingSoonPage } from './pages/ComingSoonPage'
+import { HomePage } from './pages/HomePage'
+import { LoginPage } from './pages/LoginPage'
+import { UsersPage } from './pages/UsersPage'
+import { useAuthStore } from './store/auth'
 
-// Placeholder screen for phases 1–2: proves the window, the IPC bridge and the database all work.
 export default function App() {
-  const [info, setInfo] = useState<AppInfo | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const status = useAuthStore((state) => state.status)
+  const user = useAuthStore((state) => state.user)
+  const init = useAuthStore((state) => state.init)
 
   useEffect(() => {
-    window.api
-      .invoke('app:info')
-      .then((result) => (result.ok ? setInfo(result.data) : setError(result.error)))
-      .catch((err: unknown) => setError(String(err)))
-  }, [])
+    void init()
+  }, [init])
 
-  return (
-    <main className="min-h-full bg-slate-50 p-8 text-slate-800">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold">نظام المبيعات</h1>
-          <p className="text-sm text-slate-500">
-            {info ? `الإصدار ${info.appVersion}` : 'جاري التحميل…'}
-          </p>
-        </header>
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            تعذر الاتصال بقاعدة البيانات: <span dir="ltr">{error}</span>
-          </div>
-        )}
-
-        {info && (
-          <>
-            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-2 font-semibold">قاعدة البيانات</h2>
-              <dl className="space-y-1 text-sm">
-                <div className="flex gap-2">
-                  <dt className="text-slate-500">المسار:</dt>
-                  <dd dir="ltr" className="break-all font-mono text-xs">
-                    {info.dbPath}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="text-slate-500">الترحيلات المنفذة:</dt>
-                  <dd dir="ltr" className="font-mono text-xs">
-                    {info.migrations.join(', ') || '—'}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-
-            <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-200 bg-slate-100 text-slate-600">
-                  <tr>
-                    <th className="px-4 py-2 text-start font-medium">الجدول</th>
-                    <th className="px-4 py-2 text-end font-medium">عدد السجلات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {info.tables.map((table) => (
-                    <tr key={table.name} className="border-b border-slate-100 last:border-0">
-                      <td dir="ltr" className="px-4 py-2 text-end font-mono text-xs">
-                        {table.name}
-                      </td>
-                      <td className="px-4 py-2 text-end tabular-nums">{table.rows}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          </>
-        )}
+  if (status === 'loading') {
+    return (
+      <div className="type-body flex h-full items-center justify-center bg-bg text-ink-muted">
+        {t.common.loading}
       </div>
-    </main>
+    )
+  }
+
+  if (!user) return <LoginPage />
+
+  // HashRouter, because the packaged app is loaded from a file:// URL.
+  return (
+    <HashRouter>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<HomePage />} />
+          <Route
+            path="users"
+            element={
+              <RequirePermission permission="users.manage">
+                <UsersPage />
+              </RequirePermission>
+            }
+          />
+          {NAV_ITEMS.filter((item) => !BUILT_PATHS.includes(item.path)).map((item) => (
+            <Route
+              key={item.path}
+              path={item.path.slice(1)}
+              element={
+                item.permission ? (
+                  <RequirePermission permission={item.permission}>
+                    <ComingSoonPage />
+                  </RequirePermission>
+                ) : (
+                  <ComingSoonPage />
+                )
+              }
+            />
+          ))}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </HashRouter>
   )
 }

@@ -1,10 +1,10 @@
 import { app } from 'electron'
 import type { TableInfo } from '../../shared/ipc'
 import { getDatabasePath, getDataSource } from '../database/data-source'
-import { handle } from './index'
+import { handle } from './handle'
 
 export function registerAppIpc(): void {
-  handle('app:info', async () => {
+  handle('app:info', { permission: 'settings.manage' }, async () => {
     const dataSource = getDataSource()
 
     const tables: TableInfo[] = []

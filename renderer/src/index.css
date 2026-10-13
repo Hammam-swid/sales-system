@@ -1,11 +1,245 @@
 @import 'tailwindcss';
 
-@theme {
-  --font-sans: 'Segoe UI', Tahoma, 'Noto Sans Arabic', system-ui, sans-serif;
+/* ------------------------------------------------------------------
+   همام DB design system — tokens copied from the system's tokens.json.
+   Fonts are bundled locally because the app runs fully offline.
+------------------------------------------------------------------- */
+
+@font-face {
+  font-family: 'Neo Sans Arabic';
+  src: url('./assets/fonts/NeoSansArabic-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neo Sans Arabic';
+  src: url('./assets/fonts/NeoSansArabic-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neo Sans Arabic';
+  src: url('./assets/fonts/NeoSansArabic-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Neo Sans Arabic';
+  src: url('./assets/fonts/NeoSansArabic-Black.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
 }
 
-html,
-body,
-#root {
-  height: 100%;
+/* Role tokens: these switch between themes. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f8f8f8;
+  --surface-inverse: #222a60;
+  --ink: #0d1024;
+  --ink-muted: #565866;
+  --on-primary: #ffffff;
+  --primary: #222a60;
+  --primary-hover: #1a214b;
+  --accent: #2576a0;
+  --accent-fill: #2b87b8;
+  --border: #e2e2e5;
+  --border-strong: #7a7c87;
+  --focus: #2b87b8;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #131735;
+  --surface: #1a214b;
+  --surface-inverse: #0d1024;
+  --ink: #f0f1f2;
+  --ink-muted: #a3a4ac;
+  --on-primary: #0d1024;
+  --primary: #4e9bc4;
+  --primary-hover: #71aecf;
+  --accent: #71aecf;
+  --accent-fill: #4e9bc4;
+  --border: #2e3668;
+  --border-strong: #7480b5;
+  --focus: #71aecf;
+}
+
+@theme inline {
+  --font-sans: 'Neo Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+
+  /* Only the design system's colors are available as utilities. */
+  --color-*: initial;
+  --color-white: #ffffff;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-on-primary: var(--on-primary);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-fill: var(--accent-fill);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-focus: var(--focus);
+
+  --color-success: #17784d;
+  --color-warning: #9a5b00;
+  --color-danger: #c23b3b;
+  --color-success-tint: #e3efea;
+  --color-warning-tint: #f3ebe0;
+  --color-danger-tint: #f8e7e7;
+
+  --color-navy-50: #dddee7;
+  --color-navy-100: #c3c5d3;
+  --color-navy-200: #a8abc0;
+  --color-navy-300: #8d91ad;
+  --color-navy-400: #72779a;
+  --color-navy-500: #585e86;
+  --color-navy-600: #3d4473;
+  --color-navy-700: #222a60;
+  --color-navy-800: #1a214b;
+  --color-navy-900: #131735;
+
+  --color-blue-50: #d9eaf2;
+  --color-blue-100: #b6d6e7;
+  --color-blue-200: #93c2db;
+  --color-blue-300: #71aecf;
+  --color-blue-400: #4e9bc4;
+  --color-blue-500: #2b87b8;
+  --color-blue-600: #2576a0;
+  --color-blue-700: #206488;
+  --color-blue-800: #1a5371;
+  --color-blue-900: #154159;
+
+  --color-neutral-50: #f8f8f8;
+  --color-neutral-100: #f0f1f2;
+  --color-neutral-200: #e2e2e5;
+  --color-neutral-300: #cacacf;
+  --color-neutral-400: #a3a4ac;
+  --color-neutral-500: #7a7c87;
+  --color-neutral-600: #565866;
+  --color-neutral-700: #393b4b;
+  --color-neutral-800: #202336;
+  --color-neutral-900: #0d1024;
+
+  /* Spacing uses Tailwind's 4px base, which matches space-1…space-9. */
+
+  --radius-*: initial;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-*: initial;
+  --shadow-sm: 0 1px 2px rgba(34, 42, 96, 0.08), 0 1px 3px rgba(34, 42, 96, 0.06);
+  --shadow-md: 0 4px 12px rgba(34, 42, 96, 0.1), 0 2px 4px rgba(34, 42, 96, 0.06);
+  --shadow-lg: 0 16px 40px rgba(34, 42, 96, 0.16);
+
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Type styles, named as in the design system. Arabic is never letter-spaced. */
+@utility type-h1 {
+  font-size: 36px;
+  line-height: 52px;
+  font-weight: 700;
+}
+@utility type-h2 {
+  font-size: 28px;
+  line-height: 44px;
+  font-weight: 700;
+}
+@utility type-h3 {
+  font-size: 22px;
+  line-height: 36px;
+  font-weight: 700;
+}
+@utility type-h4 {
+  font-size: 18px;
+  line-height: 30px;
+  font-weight: 500;
+}
+@utility type-body-lg {
+  font-size: 18px;
+  line-height: 32px;
+  font-weight: 400;
+}
+@utility type-body {
+  font-size: 16px;
+  line-height: 28px;
+  font-weight: 400;
+}
+@utility type-body-sm {
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 400;
+}
+@utility type-caption {
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 400;
+}
+@utility type-label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+@utility type-label-strong {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+/* The logo gradient: large fields only, never small controls or text. */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, #222a60, #23356b, #24487d, #266396, #2b87b8);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 28px;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Focus ring: 3px, offset 2px, never removed. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  dialog::backdrop {
+    background: rgba(13, 16, 36, 0.55);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

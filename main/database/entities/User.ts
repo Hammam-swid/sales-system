@@ -1,6 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm'
-
-export type UserRole = 'owner' | 'manager' | 'cashier'
+import type { UserRole } from '../../../shared/permissions'
 
 @Entity({ name: 'users' })
 export class User {
