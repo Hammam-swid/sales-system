@@ -1,6 +1,7 @@
 import { AuditLog } from './AuditLog'
 import { Category } from './Category'
 import { Customer } from './Customer'
+import { CustomerPayment } from './CustomerPayment'
 import { Expense } from './Expense'
 import { ExpenseCategory } from './ExpenseCategory'
 import { InventoryTransaction } from './InventoryTransaction'
@@ -11,12 +12,14 @@ import { Sale } from './Sale'
 import { SaleItem } from './SaleItem'
 import { Setting } from './Setting'
 import { Supplier } from './Supplier'
+import { SupplierPayment } from './SupplierPayment'
 import { User } from './User'
 
 export {
   AuditLog,
   Category,
   Customer,
+  CustomerPayment,
   Expense,
   ExpenseCategory,
   InventoryTransaction,
@@ -27,6 +30,7 @@ export {
   SaleItem,
   Setting,
   Supplier,
+  SupplierPayment,
   User
 }
 
@@ -45,5 +49,7 @@ export const entities = [
   ExpenseCategory,
   Expense,
   AuditLog,
-  Setting
+  Setting,
+  CustomerPayment,
+  SupplierPayment
 ]

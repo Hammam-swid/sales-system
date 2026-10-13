@@ -1,4 +1,3 @@
-import { listCustomers } from '../services/customers.service'
 import {
   checkout,
   discardHeldSale,
@@ -12,8 +11,6 @@ import {
 import { handle } from './handle'
 
 export function registerSalesIpc(): void {
-  handle('customers:list', { permission: 'customers.view' }, (payload) => listCustomers(payload))
-
   handle('sales:checkout', { permission: 'pos.sell' }, (payload, user) => checkout(payload, user))
   handle('sales:hold', { permission: 'pos.sell' }, (payload, user) => holdSale(payload, user))
   handle('sales:held', { permission: 'pos.sell' }, (_payload, user) => listHeldSales(user))

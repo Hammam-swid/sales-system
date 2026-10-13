@@ -7,11 +7,19 @@ import { BUILT_PATHS, NAV_ITEMS } from './navigation'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { PartiesPage } from './pages/parties/PartiesPage'
+import { CUSTOMER_KIND, SUPPLIER_KIND } from './pages/parties/partyKinds'
 import { PosPage } from './pages/pos/PosPage'
+import { PurchasesPage } from './pages/purchases/PurchasesPage'
 import { ProductsPage } from './pages/products/ProductsPage'
 import { SalesPage } from './pages/sales/SalesPage'
 import { UsersPage } from './pages/UsersPage'
-import { useAuthStore } from './store/auth'
+import { useAuthStore, useCan } from './store/auth'
+
+// Cashiers may browse customers; only managers can edit them or record payments.
+function CustomersPage() {
+  return <PartiesPage kind={CUSTOMER_KIND} canManage={useCan('customers.manage')} />
+}
 
 export default function App() {
   const status = useAuthStore((state) => state.status)
@@ -51,6 +59,30 @@ export default function App() {
             element={
               <RequirePermission permission="sales.view">
                 <SalesPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="customers"
+            element={
+              <RequirePermission permission="customers.view">
+                <CustomersPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="suppliers"
+            element={
+              <RequirePermission permission="suppliers.manage">
+                <PartiesPage kind={SUPPLIER_KIND} canManage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="purchases"
+            element={
+              <RequirePermission permission="purchases.manage">
+                <PurchasesPage />
               </RequirePermission>
             }
           />

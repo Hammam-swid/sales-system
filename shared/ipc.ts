@@ -12,6 +12,16 @@ import type {
   SaveProductRequest,
   StockMovementDto
 } from './catalog'
+import type {
+  CreatePurchaseRequest,
+  ListPurchasesRequest,
+  ListPurchasesResponse,
+  PartyDto,
+  PartyPaymentRequest,
+  PurchaseDto,
+  SavePartyRequest,
+  StatementDto
+} from './parties'
 import type { UserRole } from './permissions'
 import type {
   CheckoutRequest,
@@ -96,6 +106,20 @@ export interface IpcChannels {
   'products:adjustStock': { request: AdjustStockRequest; response: ProductDto }
   'products:movements': { request: { productId: number }; response: StockMovementDto[] }
   'customers:list': { request: { search?: string }; response: CustomerDto[] }
+  'customers:save': { request: SavePartyRequest; response: PartyDto }
+  'customers:delete': { request: { id: number }; response: null }
+  'customers:statement': { request: { id: number }; response: StatementDto }
+  'customers:pay': { request: PartyPaymentRequest; response: PartyDto }
+  'customers:recalculate': { request: { id: number }; response: PartyDto }
+  'suppliers:list': { request: { search?: string }; response: PartyDto[] }
+  'suppliers:save': { request: SavePartyRequest; response: PartyDto }
+  'suppliers:delete': { request: { id: number }; response: null }
+  'suppliers:statement': { request: { id: number }; response: StatementDto }
+  'suppliers:pay': { request: PartyPaymentRequest; response: PartyDto }
+  'suppliers:recalculate': { request: { id: number }; response: PartyDto }
+  'purchases:list': { request: ListPurchasesRequest; response: ListPurchasesResponse }
+  'purchases:get': { request: { id: number }; response: PurchaseDto }
+  'purchases:create': { request: CreatePurchaseRequest; response: PurchaseDto }
   'sales:checkout': { request: CheckoutRequest; response: SaleDto }
   'sales:hold': { request: HoldSaleRequest; response: { id: number } }
   'sales:held': { request: void; response: HeldSaleDto[] }
@@ -129,6 +153,20 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'products:adjustStock',
   'products:movements',
   'customers:list',
+  'customers:save',
+  'customers:delete',
+  'customers:statement',
+  'customers:pay',
+  'customers:recalculate',
+  'suppliers:list',
+  'suppliers:save',
+  'suppliers:delete',
+  'suppliers:statement',
+  'suppliers:pay',
+  'suppliers:recalculate',
+  'purchases:list',
+  'purchases:get',
+  'purchases:create',
   'sales:checkout',
   'sales:hold',
   'sales:held',
@@ -158,6 +196,8 @@ export type ErrorCode =
   | 'PRODUCT_UNAVAILABLE'
   | 'CUSTOMER_REQUIRED'
   | 'RETURN_EXCEEDS'
+  | 'RECORD_IN_USE'
+  | 'PAYMENT_EXCEEDS'
   | 'INTERNAL'
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ErrorCode }

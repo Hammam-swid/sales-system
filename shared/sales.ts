@@ -1,5 +1,6 @@
 // Types and money math for the checkout, invoices and returns module.
 // The math lives here so the screen and the main process always agree to the cent.
+import type { PartyDto } from './parties'
 
 export function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals
@@ -67,13 +68,7 @@ export type PaymentStatus = 'paid' | 'partial' | 'unpaid'
 export type PaymentMethod = 'cash' | 'credit' | 'mixed'
 export type SaleStatus = 'completed' | 'held' | 'returned' | 'partially_returned'
 
-export interface CustomerDto {
-  id: number
-  name: string
-  phone: string | null
-  // Debt the customer owes the shop.
-  balance: number
-}
+export type CustomerDto = PartyDto
 
 // What the checkout screen needs to know about a product.
 export interface PosProduct {

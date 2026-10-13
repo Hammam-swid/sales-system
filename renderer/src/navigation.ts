@@ -39,4 +39,13 @@ export const NAV_ITEMS: NavItem[] = [
 ]
 
 // Sections that have a real screen so far; the rest show a "coming soon" page.
-export const BUILT_PATHS: readonly string[] = ['/', '/pos', '/products', '/sales', '/users']
+export const BUILT_PATHS: readonly string[] = [
+  '/',
+  '/pos',
+  '/products',
+  '/sales',
+  '/customers',
+  '/suppliers',
+  '/purchases',
+  '/users'
+]

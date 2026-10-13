@@ -287,6 +287,92 @@ export const t = {
     }
   },
 
+  parties: {
+    name: 'الاسم',
+    phone: 'الهاتف',
+    address: 'العنوان',
+    balance: 'الرصيد',
+    settled: 'لا يوجد رصيد',
+    statement: 'كشف الحساب',
+    statementFor: (name: string) => `كشف حساب: ${name}`,
+    edit: 'تعديل',
+    delete: 'حذف',
+    saved: 'تم الحفظ',
+    deleted: 'تم الحذف',
+    paymentSaved: 'تم تسجيل الدفعة',
+    amount: 'المبلغ',
+    note: 'ملاحظة',
+    noteOptional: 'ملاحظة (اختياري)',
+    payAll: 'كامل الرصيد',
+    date: 'التاريخ',
+    entry: 'البيان',
+    invoiceTotal: 'قيمة الفاتورة',
+    change: 'الحركة',
+    balanceAfter: 'الرصيد بعدها',
+    noEntries: 'لا توجد حركات بعد',
+    entryKind: { invoice: 'فاتورة', payment: 'دفعة', return_credit: 'مرتجع' },
+    mismatch: (stored: string, computed: string) =>
+      `الرصيد المسجل (${stored}) لا يطابق الرصيد المحسوب من الحركات (${computed}).`,
+    recalculate: 'تصحيح الرصيد',
+    verified: 'الرصيد مطابق للحركات المسجلة',
+    recalculated: 'تم تصحيح الرصيد'
+  },
+
+  customers: {
+    title: 'العملاء',
+    subtitle: 'سجل العملاء وديونهم',
+    searchPlaceholder: 'ابحث بالاسم أو رقم الهاتف…',
+    add: 'إضافة عميل',
+    editTitle: 'تعديل العميل',
+    balanceLabel: 'الدين',
+    totalBalance: 'إجمالي ديون العملاء',
+    pay: 'تسجيل دفعة',
+    payTitle: (name: string) => `دفعة من العميل: ${name}`,
+    currentBalance: 'الدين الحالي',
+    empty: 'لا يوجد عملاء',
+    deleteTitle: 'حذف العميل',
+    deleteBody: (name: string) => `هل تريد حذف العميل "${name}"؟`
+  },
+
+  suppliers: {
+    title: 'الموردون',
+    subtitle: 'سجل الموردين والمبالغ المستحقة لهم',
+    searchPlaceholder: 'ابحث بالاسم أو رقم الهاتف…',
+    add: 'إضافة مورد',
+    editTitle: 'تعديل المورد',
+    balanceLabel: 'المستحق له',
+    totalBalance: 'إجمالي المستحق للموردين',
+    pay: 'تسجيل دفعة',
+    payTitle: (name: string) => `دفعة إلى المورد: ${name}`,
+    currentBalance: 'المستحق حاليًا',
+    empty: 'لا يوجد موردون',
+    deleteTitle: 'حذف المورد',
+    deleteBody: (name: string) => `هل تريد حذف المورد "${name}"؟`
+  },
+
+  purchases: {
+    title: 'المشتريات',
+    subtitle: 'فواتير الشراء من الموردين وتغذية المخزون',
+    add: 'فاتورة شراء جديدة',
+    searchPlaceholder: 'ابحث باسم المورد…',
+    number: 'رقم الفاتورة',
+    supplier: 'المورد',
+    chooseSupplier: 'اختر المورد',
+    recordedBy: 'سجّلها',
+    empty: 'لا توجد فواتير شراء',
+    detailTitle: (number: string) => `فاتورة شراء ${number}`,
+    view: 'عرض الفاتورة',
+    addProduct: 'ابحث عن منتج لإضافته أو امسح الباركود…',
+    noLines: 'أضف المنتجات المشتراة من البحث أعلاه',
+    unitCost: 'تكلفة الوحدة',
+    paidNow: 'المدفوع الآن',
+    owed: 'المتبقي للمورد',
+    save: 'حفظ الفاتورة',
+    saved: 'تم حفظ فاتورة الشراء وتحديث المخزون',
+    remove: 'إزالة',
+    costNote: 'تُحدَّث تكلفة المنتج بمتوسط مرجّح بين المخزون الحالي والكمية المشتراة.'
+  },
+
   receipt: {
     invoice: 'فاتورة مبيعات',
     cashier: 'البائع',
@@ -328,6 +414,8 @@ export const t = {
     PRODUCT_UNAVAILABLE: 'هذا المنتج لم يعد متاحًا للبيع.',
     CUSTOMER_REQUIRED: 'اختر عميلًا لتسجيل المبلغ المتبقي دينًا عليه.',
     RETURN_EXCEEDS: 'كمية الإرجاع أكبر من الكمية المتاحة للإرجاع.',
+    RECORD_IN_USE: 'لا يمكن الحذف لوجود فواتير أو دفعات أو رصيد مرتبط بهذا السجل.',
+    PAYMENT_EXCEEDS: 'مبلغ الدفعة أكبر من الرصيد المستحق.',
     INTERNAL: 'حدث خطأ غير متوقع. حاول مرة أخرى.'
   } satisfies Record<ErrorCode, string>
 }

@@ -20,6 +20,7 @@ import type { SessionUser } from '../auth/session'
 import { getDataSource } from '../database/data-source'
 import {
   Customer,
+  CustomerPayment,
   InventoryTransaction,
   Product,
   Sale,
@@ -479,6 +480,18 @@ export async function returnSale(payload: unknown, actor: SessionUser): Promise<
         debtReduction = roundTo(Math.min(returnValue, unpaidLeft, Math.max(customer.balance, 0)), 2)
         customer.balance = roundTo(customer.balance - debtReduction, 2)
         await manager.getRepository(Customer).save(customer)
+        if (debtReduction > 0) {
+          // Ledger row, so the customer's balance can be rebuilt from history.
+          await manager.getRepository(CustomerPayment).save(
+            manager.getRepository(CustomerPayment).create({
+              customerId: customer.id,
+              kind: 'return_credit',
+              amount: debtReduction,
+              saleId: sale.id,
+              userId: actor.id
+            })
+          )
+        }
       }
     }
     const cashRefund = roundTo(returnValue - debtReduction, 2)
