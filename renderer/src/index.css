@@ -245,8 +245,11 @@
 }
 
 /* ------------------------------------------------------------------
-   Receipt printing (80mm thermal roll, also fine for "Print to PDF").
-   On screen the print host is hidden; on paper it is the only thing shown.
+   Printing. Two cases:
+   - a receipt: the print host is the only thing shown, on an 80mm roll
+     (the receipt injects its own @page size while it prints);
+   - a report (also used for PDF export): the current screen without the
+     app chrome, on A4, always in the light theme.
 ------------------------------------------------------------------- */
 .print-host {
   display: none;
@@ -254,21 +257,77 @@
 
 @media print {
   @page {
-    size: 80mm auto;
-    margin: 0;
+    size: A4;
+    margin: 12mm;
+  }
+
+  /* Paper is white: use the light theme whatever the app is set to. */
+  :root,
+  :root[data-theme='dark'] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --surface: #f8f8f8;
+    --surface-inverse: #222a60;
+    --ink: #0d1024;
+    --ink-muted: #565866;
+    --on-primary: #ffffff;
+    --primary: #222a60;
+    --primary-hover: #1a214b;
+    --accent: #2576a0;
+    --accent-fill: #2b87b8;
+    --border: #e2e2e5;
+    --border-strong: #7a7c87;
+    --focus: #2b87b8;
   }
 
   html,
-  body {
+  body,
+  #root {
     height: auto;
     background: #ffffff;
   }
 
-  #root {
+  /* Report printing: drop the chrome and let the page flow instead of scroll. */
+  .no-print {
+    display: none !important;
+  }
+
+  .app-shell,
+  .app-shell > div,
+  .app-main {
+    display: block;
+    height: auto;
+    overflow: visible;
+    padding: 0;
+  }
+
+  /* Charts are sized in pixels for the screen and are not re-measured for paper,
+     so scale the drawing to the page instead of letting it overflow. */
+  .chart-box,
+  .recharts-responsive-container,
+  /* The library wraps the chart in a zero-sized box; give it the page width too. */
+  .recharts-responsive-container > div,
+  .recharts-wrapper {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+  }
+
+  .recharts-surface {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  /* Receipt printing: only the receipt. */
+  body.printing-receipt #root {
     display: none;
   }
 
-  .print-host {
+  body.printing-receipt .print-host {
     display: block;
   }
 }

@@ -105,18 +105,23 @@ export function PrintHost() {
 
   useEffect(() => {
     if (!sale) return
+    // Tells the print stylesheet this is a receipt, not a report.
+    document.body.classList.add('printing-receipt')
     window.addEventListener('afterprint', done, { once: true })
     // Let the receipt paint before the dialog opens.
     const timer = setTimeout(() => window.print(), 50)
     return () => {
       clearTimeout(timer)
       window.removeEventListener('afterprint', done)
+      document.body.classList.remove('printing-receipt')
     }
   }, [sale, done])
 
   if (!sale || !signedIn) return null
   return createPortal(
     <div className="print-host">
+      {/* Overrides the A4 default only while a receipt is being printed. */}
+      <style>{'@page { size: 80mm auto; margin: 0; }'}</style>
       <Receipt sale={sale} />
     </div>,
     document.body

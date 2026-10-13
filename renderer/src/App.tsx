@@ -13,6 +13,7 @@ import { CUSTOMER_KIND, SUPPLIER_KIND } from './pages/parties/partyKinds'
 import { PosPage } from './pages/pos/PosPage'
 import { PurchasesPage } from './pages/purchases/PurchasesPage'
 import { ProductsPage } from './pages/products/ProductsPage'
+import { ReportsPage } from './pages/reports/ReportsPage'
 import { SalesPage } from './pages/sales/SalesPage'
 import { UsersPage } from './pages/UsersPage'
 import { useAuthStore, useCan } from './store/auth'
@@ -92,6 +93,14 @@ export default function App() {
             element={
               <RequirePermission permission="expenses.manage">
                 <ExpensesPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="reports"
+            element={
+              <RequirePermission permission="reports.view">
+                <ReportsPage />
               </RequirePermission>
             }
           />

@@ -48,5 +48,6 @@ export const BUILT_PATHS: readonly string[] = [
   '/suppliers',
   '/purchases',
   '/expenses',
+  '/reports',
   '/users'
 ]

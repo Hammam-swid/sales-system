@@ -32,6 +32,16 @@ import type {
 } from './parties'
 import type { UserRole } from './permissions'
 import type {
+  BalancesReport,
+  DateRangeRequest,
+  ExportExcelRequest,
+  ExportResult,
+  ProductsReport,
+  ProfitReport,
+  SalesReport,
+  SalesReportRequest
+} from './reports'
+import type {
   CheckoutRequest,
   CustomerDto,
   HeldSaleDto,
@@ -134,6 +144,12 @@ export interface IpcChannels {
   'expenses:list': { request: ListExpensesRequest; response: ListExpensesResponse }
   'expenses:save': { request: SaveExpenseRequest; response: ExpenseDto }
   'expenses:delete': { request: { id: number }; response: null }
+  'reports:sales': { request: SalesReportRequest; response: SalesReport }
+  'reports:profit': { request: DateRangeRequest; response: ProfitReport }
+  'reports:products': { request: DateRangeRequest; response: ProductsReport }
+  'reports:balances': { request: void; response: BalancesReport }
+  'export:excel': { request: ExportExcelRequest; response: ExportResult }
+  'export:pdf': { request: { fileName: string }; response: ExportResult }
   'sales:checkout': { request: CheckoutRequest; response: SaleDto }
   'sales:hold': { request: HoldSaleRequest; response: { id: number } }
   'sales:held': { request: void; response: HeldSaleDto[] }
@@ -187,6 +203,12 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'expenses:list',
   'expenses:save',
   'expenses:delete',
+  'reports:sales',
+  'reports:profit',
+  'reports:products',
+  'reports:balances',
+  'export:excel',
+  'export:pdf',
   'sales:checkout',
   'sales:hold',
   'sales:held',
