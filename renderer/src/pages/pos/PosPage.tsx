@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Minus, PauseCircle, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react'
+import {
+  Minus,
+  NotebookPen,
+  PauseCircle,
+  Plus,
+  Search,
+  ShoppingCart,
+  Trash2,
+  X
+} from 'lucide-react'
 import {
   computeTotals,
   lineTotal,
@@ -7,6 +16,8 @@ import {
   type CustomerDto,
   type PosProduct
 } from '../../../../shared/sales'
+import { noteOptionsFor, type CategoryDto } from '../../../../shared/catalog'
+import { ORDER_TYPES, localDate } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
@@ -14,10 +25,17 @@ import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { cn } from '../../lib/cn'
 import { formatMoney, formatQuantity, parseNumber } from '../../lib/format'
-import { quantityStep, useCartStore, type DiscountMode } from '../../store/cart'
-import { useSettingsStore } from '../../store/settings'
+import {
+  maxQuantity,
+  quantityInCart,
+  quantityStep,
+  useCartStore,
+  type DiscountMode
+} from '../../store/cart'
+import { useFeature, useSettingsStore } from '../../store/settings'
 import { unitLabel } from '../products/ProductsTab'
 import { HeldSalesModal } from './HeldSalesModal'
+import { LineNoteModal } from './LineNoteModal'
 import { PaymentModal } from './PaymentModal'
 
 const RESULT_LIMIT = 30
@@ -31,7 +49,14 @@ export function PosPage() {
   const cart = useCartStore()
   const money = (value: number) => formatMoney(value, currency)
 
+  const posCategories = useFeature('posCategories')
+  const orderTypes = useFeature('orderTypes')
+  const lineNotes = useFeature('lineNotes')
+
   const [query, setQuery] = useState('')
+  const [categories, setCategories] = useState<CategoryDto[]>([])
+  const [categoryId, setCategoryId] = useState<number | null>(null)
+  const [noteLineId, setNoteLineId] = useState<number | null>(null)
   const [products, setProducts] = useState<PosProduct[] | null>(null)
   const [customers, setCustomers] = useState<CustomerDto[]>([])
   const [heldCount, setHeldCount] = useState(0)
@@ -41,21 +66,26 @@ export function PosPage() {
   const searchRef = useRef<HTMLInputElement>(null)
   const requestId = useRef(0)
 
-  const fetchProducts = useCallback(async (search: string): Promise<PosProduct[] | null> => {
-    const current = ++requestId.current
-    const result = await api('products:list', {
-      search,
-      status: 'active',
-      pageSize: RESULT_LIMIT
-    })
-    if (current !== requestId.current) return null
-    if (!result.ok) {
-      setError(errorText(result))
-      return null
-    }
-    setProducts(result.data.items)
-    return result.data.items
-  }, [])
+  const fetchProducts = useCallback(
+    async (search: string): Promise<PosProduct[] | null> => {
+      const current = ++requestId.current
+      const result = await api('products:list', {
+        search,
+        // A typed search or scanned barcode looks in every category.
+        categoryId: search === '' ? categoryId : null,
+        status: 'active',
+        pageSize: RESULT_LIMIT
+      })
+      if (current !== requestId.current) return null
+      if (!result.ok) {
+        setError(errorText(result))
+        return null
+      }
+      setProducts(result.data.items)
+      return result.data.items
+    },
+    [categoryId]
+  )
 
   const refreshSideData = useCallback(async () => {
     const [customersResult, heldResult] = await Promise.all([
@@ -71,16 +101,28 @@ export function PosPage() {
   }, [refreshSideData])
 
   useEffect(() => {
+    if (!posCategories && !lineNotes) return
+    void api('categories:list').then((result) => {
+      if (result.ok) setCategories(result.data)
+    })
+  }, [posCategories, lineNotes])
+
+  useEffect(() => {
     const timer = setTimeout(() => void fetchProducts(query.trim()), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query, fetchProducts])
 
   const focusSearch = () => searchRef.current?.focus()
+  const topCategories = categories.filter((category) => category.parentId === null)
+  const noteLine = cart.lines.find((line) => line.id === noteLineId) ?? null
 
   const addProduct = (product: PosProduct) => {
     setNotice(null)
-    if (cart.add(product)) setError(null)
-    else setError(`${product.name}: ${t.errors.INSUFFICIENT_STOCK}`)
+    if (!cart.add(product)) setError(`${product.name}: ${t.errors.INSUFFICIENT_STOCK}`)
+    // Still sellable, but the cashier should know before handing it over.
+    else if (product.expiryDate !== null && product.expiryDate < localDate()) {
+      setError(t.pos.expiredProduct(product.name))
+    } else setError(null)
   }
 
   // A barcode scanner types the code and presses Enter: add the match straight to the cart.
@@ -114,10 +156,12 @@ export function PosPage() {
     items: sellable.map((line) => ({
       productId: line.product.id,
       quantity: line.quantity,
-      discount: line.discount
+      discount: line.discount,
+      note: lineNotes && line.note.trim() !== '' ? line.note.trim() : null
     })),
     discount: totals.discount,
-    customerId: cart.customerId
+    customerId: cart.customerId,
+    orderType: orderTypes ? cart.orderType : null
   })
 
   const hold = async () => {
@@ -164,6 +208,30 @@ export function PosPage() {
           />
         </div>
 
+        {posCategories && topCategories.length > 0 && (
+          <div role="group" aria-label={t.pos.categories} className="flex flex-wrap gap-2">
+            {[{ id: null, name: t.products.allCategories }, ...topCategories].map((category) => (
+              <button
+                key={category.id ?? 'all'}
+                type="button"
+                aria-pressed={categoryId === category.id}
+                onClick={() => {
+                  setCategoryId(category.id)
+                  setQuery('')
+                }}
+                className={cn(
+                  'type-label h-11 rounded-md border px-4 transition-colors duration-[120ms] ease-brand',
+                  categoryId === category.id
+                    ? 'border-primary bg-primary text-on-primary'
+                    : 'border-border-strong bg-bg text-ink hover:bg-surface'
+                )}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {error && <Alert>{error}</Alert>}
         {notice && <Alert tone="success">{notice}</Alert>}
 
@@ -173,7 +241,7 @@ export function PosPage() {
           )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
             {products?.map((product) => {
-              const soldOut = product.quantity <= 0
+              const soldOut = product.trackStock && product.quantity <= 0
               return (
                 <button
                   key={product.id}
@@ -193,11 +261,13 @@ export function PosPage() {
                     <span className="type-label-strong text-accent tabular-nums">
                       {money(product.salePrice)}
                     </span>
-                    <span className="type-caption text-ink-muted">
-                      {soldOut
-                        ? t.pos.outOfStock
-                        : t.pos.inStock(formatQuantity(product.quantity), unitLabel(product.unit))}
-                    </span>
+                    {product.trackStock && (
+                      <span className="type-caption text-ink-muted">
+                        {soldOut
+                          ? t.pos.outOfStock
+                          : t.pos.inStock(formatQuantity(product.quantity), unitLabel(product.unit))}
+                      </span>
+                    )}
                   </span>
                 </button>
               )
@@ -236,9 +306,18 @@ export function PosPage() {
             <ul>
               {cart.lines.map((line) => {
                 const step = quantityStep(line.product.unit)
-                const atMax = line.quantity >= line.product.quantity
+                // Stock is shared by every line of the same product.
+                const lineMax = roundTo(
+                  maxQuantity(line.product) -
+                    quantityInCart(cart.lines, line.product.id, line.id),
+                  3
+                )
+                const atMax = line.quantity >= lineMax
+                const noteOptions = lineNotes
+                  ? noteOptionsFor(categories, line.product.categoryId)
+                  : []
                 return (
-                  <li key={line.product.id} className="border-b border-border py-3 last:border-0">
+                  <li key={line.id} className="border-b border-border py-3 last:border-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="type-label text-ink">{line.product.name}</p>
@@ -250,7 +329,7 @@ export function PosPage() {
                         icon={Trash2}
                         label={t.pos.remove}
                         tone="danger"
-                        onClick={() => cart.remove(line.product.id)}
+                        onClick={() => cart.remove(line.id)}
                       />
                     </div>
 
@@ -260,17 +339,17 @@ export function PosPage() {
                         label={t.pos.decrease}
                         className="border border-border-strong"
                         disabled={line.quantity <= 0}
-                        onClick={() => cart.setQuantity(line.product.id, line.quantity - step)}
+                        onClick={() => cart.setQuantity(line.id, line.quantity - step)}
                       />
                       <input
                         type="number"
                         min={0}
-                        max={line.product.quantity}
+                        max={line.product.trackStock ? lineMax : undefined}
                         step="any"
                         dir="ltr"
                         value={line.quantity}
                         onChange={(event) =>
-                          cart.setQuantity(line.product.id, parseNumber(event.target.value) ?? 0)
+                          cart.setQuantity(line.id, parseNumber(event.target.value) ?? 0)
                         }
                         aria-label={`${t.pos.quantity}: ${line.product.name}`}
                         className={cn(SMALL_INPUT, 'w-16')}
@@ -280,7 +359,7 @@ export function PosPage() {
                         label={t.pos.increase}
                         className="border border-border-strong"
                         disabled={atMax}
-                        onClick={() => cart.setQuantity(line.product.id, line.quantity + step)}
+                        onClick={() => cart.setQuantity(line.id, line.quantity + step)}
                       />
                       <input
                         type="number"
@@ -290,7 +369,7 @@ export function PosPage() {
                         value={line.discount === 0 ? '' : line.discount}
                         placeholder={t.sales.discount}
                         onChange={(event) =>
-                          cart.setLineDiscount(line.product.id, parseNumber(event.target.value) ?? 0)
+                          cart.setLineDiscount(line.id, parseNumber(event.target.value) ?? 0)
                         }
                         aria-label={`${t.pos.lineDiscount}: ${line.product.name}`}
                         className={cn(SMALL_INPUT, 'w-20 placeholder:text-ink-muted')}
@@ -305,6 +384,19 @@ export function PosPage() {
                         )}
                       </span>
                     </div>
+                    {(noteOptions.length > 0 || line.note !== '') && (
+                      <button
+                        type="button"
+                        onClick={() => setNoteLineId(line.id)}
+                        className={cn(
+                          'type-body-sm mt-2 flex min-h-9 w-full items-center gap-2 rounded-sm border border-border-strong bg-bg px-2 py-1 text-start hover:bg-surface',
+                          line.note === '' ? 'text-ink-muted' : 'text-ink'
+                        )}
+                      >
+                        <NotebookPen aria-hidden className="size-4 shrink-0" />
+                        {line.note === '' ? t.pos.addNote : line.note}
+                      </button>
+                    )}
                     {atMax && (
                       <p className="type-caption mt-1 text-warning">
                         {t.pos.maxStock(formatQuantity(line.product.quantity))}
@@ -318,6 +410,26 @@ export function PosPage() {
         </div>
 
         <footer className="space-y-3 border-t border-border px-5 py-4">
+          {orderTypes && (
+            <div role="group" aria-label={t.pos.orderType} className="flex gap-2">
+              {ORDER_TYPES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={cart.orderType === option}
+                  onClick={() => cart.setOrderType(option)}
+                  className={cn(
+                    'type-label h-10 flex-1 rounded-sm border transition-colors duration-[120ms] ease-brand',
+                    cart.orderType === option
+                      ? 'border-primary bg-primary text-on-primary'
+                      : 'border-border-strong bg-bg text-ink hover:bg-surface'
+                  )}
+                >
+                  {t.orderTypes[option]}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="block space-y-1">
             <span className="type-label text-ink">{t.pos.customer}</span>
             <select
@@ -425,6 +537,14 @@ export function PosPage() {
           customer={customer}
           onCompleted={() => cart.clear()}
           onClose={afterSale}
+        />
+      )}
+      {noteLine && (
+        <LineNoteModal
+          line={noteLine}
+          options={noteOptionsFor(categories, noteLine.product.categoryId)}
+          onApply={(note, count) => cart.setLineNote(noteLine.id, note, count)}
+          onClose={() => setNoteLineId(null)}
         />
       )}
       {dialog === 'held' && (

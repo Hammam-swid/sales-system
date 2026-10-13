@@ -375,6 +375,17 @@
   margin-bottom: 2px;
 }
 
+.receipt-note {
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.receipt-order-number {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+}
+
 .receipt-total {
   font-size: 14px;
   line-height: 22px;

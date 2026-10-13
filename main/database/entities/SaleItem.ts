@@ -41,4 +41,11 @@ export class SaleItem {
 
   @Column({ type: 'real', name: 'returned_quantity', default: 0 })
   returnedQuantity!: number
+
+  @Column({ type: 'text', nullable: true })
+  note!: string | null
+
+  // Warranty at the time of sale, so later product edits never alter past invoices.
+  @Column({ type: 'integer', name: 'warranty_months', default: 0 })
+  warrantyMonths!: number
 }

@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUpDown, History, Pencil, Plus, Search, Trash2, TriangleAlert } from 'lucide-react'
+import {
+  ArrowUpDown,
+  CalendarClock,
+  History,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert
+} from 'lucide-react'
+import { EXPIRY_WARNING_DAYS, localDate } from '../../../../shared/store'
 import type {
   CategoryDto,
   ListProductsResponse,
@@ -18,7 +28,7 @@ import { api, errorText } from '../../lib/api'
 import { categoryOptionLabel, orderCategories } from '../../lib/categories'
 import { cn } from '../../lib/cn'
 import { formatMoney, formatQuantity } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
+import { useCurrency, useFeature } from '../../store/settings'
 import { MovementsModal } from './MovementsModal'
 import { ProductFormModal } from './ProductFormModal'
 import { StockAdjustModal } from './StockAdjustModal'
@@ -62,6 +72,8 @@ export function ProductsTab({
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [status, setStatus] = useState<ProductStatusFilter>('active')
   const [lowStockOnly, setLowStockOnly] = useState(false)
+  const expiryDates = useFeature('expiryDates')
+  const [expiringOnly, setExpiringOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [data, setData] = useState<ListProductsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -84,6 +96,7 @@ export function ProductsTab({
       categoryId,
       status,
       lowStockOnly,
+      expiringOnly,
       page,
       pageSize: PAGE_SIZE
     })
@@ -95,7 +108,7 @@ export function ProductsTab({
     } else {
       setError(errorText(result))
     }
-  }, [search, categoryId, status, lowStockOnly, page])
+  }, [search, categoryId, status, lowStockOnly, expiringOnly, page])
 
   useEffect(() => {
     void load()
@@ -115,10 +128,13 @@ export function ProductsTab({
   }
 
   const showActions = canManage || canAdjustStock
-  const columnCount = 6 + (canManage ? 1 : 0) + (showActions ? 1 : 0)
+  const columnCount = 6 + (canManage ? 1 : 0) + (expiryDates ? 1 : 0) + (showActions ? 1 : 0)
   const total = data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const lowStockCount = data?.lowStockCount ?? 0
+  const expiringCount = data?.expiringCount ?? 0
+  const today = localDate()
+  const expiryLimit = localDate(EXPIRY_WARNING_DAYS)
 
   return (
     <div className="space-y-4">
@@ -199,6 +215,29 @@ export function ProductsTab({
           {t.products.lowStockFilter(lowStockCount)}
         </button>
 
+        {expiryDates && (
+          <button
+            type="button"
+            aria-pressed={expiringOnly}
+            onClick={() => {
+              setExpiringOnly((value) => !value)
+              setPage(1)
+            }}
+            className={cn(
+              'type-label flex h-11 items-center gap-2 rounded-sm border px-3 transition-colors duration-[120ms] ease-brand',
+              expiringOnly
+                ? 'border-warning bg-warning-tint text-warning'
+                : 'border-border-strong bg-bg text-ink hover:bg-surface'
+            )}
+          >
+            <CalendarClock
+              aria-hidden
+              className={cn('size-4', expiringCount > 0 && !expiringOnly && 'text-warning')}
+            />
+            {t.products.expiryFilter(expiringCount)}
+          </button>
+        )}
+
         {canManage && (
           <Button
             icon={<Plus aria-hidden className="size-4" />}
@@ -221,6 +260,7 @@ export function ProductsTab({
               <th className="px-4 py-3 text-end">{t.products.salePrice}</th>
               <th className="px-4 py-3 text-end">{t.products.quantity}</th>
               <th className="px-4 py-3 text-start">{t.products.unit}</th>
+              {expiryDates && <th className="px-4 py-3 text-start">{t.products.expiryDate}</th>}
               <th className="px-4 py-3 text-start">{t.products.status}</th>
               {showActions && <th className="px-4 py-3 text-end">{t.common.actions}</th>}
             </tr>
@@ -262,12 +302,34 @@ export function ProductsTab({
                   {formatMoney(product.salePrice, currency)}
                 </td>
                 <td className="px-4 py-3 text-end tabular-nums">
-                  {formatQuantity(product.quantity)}
+                  {product.trackStock ? formatQuantity(product.quantity) : '—'}
                 </td>
                 <td className="px-4 py-3 text-ink-muted">{unitLabel(product.unit)}</td>
+                {expiryDates && (
+                  <td className="px-4 py-3">
+                    {product.expiryDate === null ? (
+                      <span className="text-ink-muted">—</span>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span dir="ltr" className="tabular-nums">
+                          {product.expiryDate}
+                        </span>
+                        {product.expiryDate < today ? (
+                          <Badge tone="danger">{t.products.expired}</Badge>
+                        ) : (
+                          product.expiryDate <= expiryLimit && (
+                            <Badge tone="warning">{t.products.expiringSoon}</Badge>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   {!product.isActive ? (
                     <Badge>{t.products.archived}</Badge>
+                  ) : !product.trackStock ? (
+                    <Badge>{t.products.untracked}</Badge>
                   ) : product.isLowStock ? (
                     <Badge tone="warning">{t.products.lowStock}</Badge>
                   ) : (
@@ -277,7 +339,7 @@ export function ProductsTab({
                 {showActions && (
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
-                      {canAdjustStock && (
+                      {canAdjustStock && product.trackStock && (
                         <>
                           <IconButton
                             icon={ArrowUpDown}

@@ -130,6 +130,8 @@ export async function createPurchase(payload: unknown, actor: SessionUser): Prom
     for (const line of lines) {
       const product = await manager.getRepository(Product).findOneBy({ id: line.productId })
       if (!product) throw new AppError('NOT_FOUND', 'product')
+      // Items sold without stock have no quantity to receive.
+      if (!product.trackStock) throw new AppError('VALIDATION', 'items')
 
       await manager.getRepository(PurchaseItem).save(
         manager.getRepository(PurchaseItem).create({ purchaseId: purchase.id, ...line })

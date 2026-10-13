@@ -12,6 +12,10 @@ export class Category {
   @Column({ type: 'integer', name: 'parent_id', nullable: true })
   parentId!: number | null
 
+  // Ready-made line notes for this category's products, as a JSON array of strings.
+  @Column({ type: 'text', name: 'note_options', nullable: true })
+  noteOptions!: string | null
+
   @ManyToOne(() => Category, (category) => category.children, { nullable: true })
   @JoinColumn({ name: 'parent_id' })
   parent?: Relation<Category> | null

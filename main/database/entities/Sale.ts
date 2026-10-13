@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn
 } from 'typeorm'
 import type { Relation } from 'typeorm'
+import type { OrderType } from '../../../shared/store'
 import { Customer } from './Customer'
 import { SaleItem } from './SaleItem'
 import { User } from './User'
@@ -61,6 +62,13 @@ export class Sale {
 
   @Column({ type: 'text', default: 'completed' })
   status!: SaleStatus
+
+  @Column({ type: 'text', name: 'order_type', nullable: true })
+  orderType!: OrderType | null
+
+  // Short daily number called out to the customer; null when the shop does not use them.
+  @Column({ type: 'integer', name: 'order_number', nullable: true })
+  orderNumber!: number | null
 
   @OneToMany(() => SaleItem, (item) => item.sale)
   items?: Relation<SaleItem>[]

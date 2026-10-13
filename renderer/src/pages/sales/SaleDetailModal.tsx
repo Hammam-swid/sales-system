@@ -6,13 +6,20 @@ import {
   type ReturnSaleResponse,
   type SaleDto
 } from '../../../../shared/sales'
+import { formatOrderNumber, warrantyEnd } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
-import { formatDateTime, formatMoney, formatQuantity, parseNumber } from '../../lib/format'
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatQuantity,
+  parseNumber
+} from '../../lib/format'
 import { useCan } from '../../store/auth'
 import { usePrintStore } from '../../store/print'
 import { useCurrency } from '../../store/settings'
@@ -94,6 +101,20 @@ export function SaleDetailModal({ saleId, onChanged, onClose }: SaleDetailModalP
               <span className="text-ink-muted">{t.sales.cashier}: </span>
               {sale.userName ?? '—'}
             </span>
+            {sale.orderNumber !== null && (
+              <span>
+                <span className="text-ink-muted">{t.pos.orderNumber}: </span>
+                <span dir="ltr" className="tabular-nums">
+                  {formatOrderNumber(sale.orderNumber)}
+                </span>
+              </span>
+            )}
+            {sale.orderType && (
+              <span>
+                <span className="text-ink-muted">{t.pos.orderType}: </span>
+                {t.orderTypes[sale.orderType]}
+              </span>
+            )}
             <Badge tone={STATUS_TONE[sale.status]}>{t.sales.saleStatus[sale.status]}</Badge>
             <Badge tone={PAYMENT_TONE[sale.paymentStatus]}>
               {t.sales.paymentStatus[sale.paymentStatus]}
@@ -115,7 +136,20 @@ export function SaleDetailModal({ saleId, onChanged, onClose }: SaleDetailModalP
               <tbody>
                 {sale.items.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2">{item.productName}</td>
+                    <td className="px-4 py-2">
+                      {item.productName}
+                      {item.note && <div className="type-caption text-ink-muted">{item.note}</div>}
+                      {item.warrantyMonths > 0 && (
+                        <div className="type-caption text-ink-muted">
+                          {t.receipt.warranty(
+                            item.warrantyMonths,
+                            formatDate(
+                              `${warrantyEnd(sale.createdAt, item.warrantyMonths)}T00:00:00`
+                            )
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-end tabular-nums">{money(item.unitPrice)}</td>
                     <td className="px-4 py-2 text-end tabular-nums">
                       {formatQuantity(item.quantity)}

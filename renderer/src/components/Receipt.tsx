@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { SaleDto } from '../../../shared/sales'
+import { formatOrderNumber, warrantyEnd } from '../../../shared/store'
 import { t } from '../i18n'
-import { formatDateTime, formatMoney, formatQuantity } from '../lib/format'
+import { formatDate, formatDateTime, formatMoney, formatQuantity } from '../lib/format'
 import { useAuthStore } from '../store/auth'
 import { usePrintStore } from '../store/print'
 import { useSettingsStore } from '../store/settings'
@@ -23,11 +24,25 @@ export function Receipt({ sale }: { sale: SaleDto }) {
       </header>
 
       <div className="receipt-rule" />
+      {sale.orderNumber !== null && (
+        <div className="receipt-center">
+          <div>{t.receipt.orderNumber}</div>
+          <div dir="ltr" className="receipt-order-number">
+            {formatOrderNumber(sale.orderNumber)}
+          </div>
+        </div>
+      )}
       <div className="receipt-center receipt-strong">{t.receipt.invoice}</div>
       <div className="receipt-row">
         <span>{t.pos.invoiceNumber}</span>
         <span dir="ltr">{sale.invoiceNumber}</span>
       </div>
+      {sale.orderType && (
+        <div className="receipt-row">
+          <span>{t.pos.orderType}</span>
+          <span>{t.orderTypes[sale.orderType]}</span>
+        </div>
+      )}
       <div className="receipt-row">
         <span>{t.sales.date}</span>
         <span>{formatDateTime(sale.createdAt)}</span>
@@ -56,6 +71,15 @@ export function Receipt({ sale }: { sale: SaleDto }) {
             </span>
             <span>{money(item.total)}</span>
           </div>
+          {item.note && <div className="receipt-note">{item.note}</div>}
+          {item.warrantyMonths > 0 && (
+            <div className="receipt-note">
+              {t.receipt.warranty(
+                item.warrantyMonths,
+                formatDate(`${warrantyEnd(sale.createdAt, item.warrantyMonths)}T00:00:00`)
+              )}
+            </div>
+          )}
         </div>
       ))}
 

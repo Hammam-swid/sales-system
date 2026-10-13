@@ -209,7 +209,7 @@ export async function productsReport(payload: unknown): Promise<ProductsReport> 
             (SELECT MAX(s2.created_at) FROM sale_items si2 JOIN sales s2 ON s2.id = si2.sale_id
              WHERE si2.product_id = p.id AND s2.status != 'held') AS last_sold
      FROM products p LEFT JOIN (${PRODUCT_SALES}) x ON x.product_id = p.id
-     WHERE p.is_active = 1 AND p.quantity > 0
+     WHERE p.is_active = 1 AND p.track_stock = 1 AND p.quantity > 0
      ORDER BY sold ASC, stock_value DESC
      LIMIT ${TOP_PRODUCTS}`,
     [from, to]
@@ -218,10 +218,11 @@ export async function productsReport(payload: unknown): Promise<ProductsReport> 
     `SELECT COUNT(*) AS product_count,
             SUM(quantity * purchase_price) AS cost_value,
             SUM(quantity * sale_price) AS retail_value
-     FROM products WHERE is_active = 1 AND quantity > 0`
+     FROM products WHERE is_active = 1 AND track_stock = 1 AND quantity > 0`
   )
   const [low]: Record<string, unknown>[] = await dataSource.query(
-    `SELECT COUNT(*) AS count FROM products WHERE is_active = 1 AND quantity <= min_quantity`
+    `SELECT COUNT(*) AS count FROM products
+     WHERE is_active = 1 AND track_stock = 1 AND quantity <= min_quantity`
   )
 
   return {

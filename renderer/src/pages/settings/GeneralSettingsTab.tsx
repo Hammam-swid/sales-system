@@ -71,7 +71,9 @@ export function GeneralSettingsTab({ onNotice }: { onNotice: (message: string | 
     setSaving(true)
     setError(null)
     onNotice(null)
-    const result = await api('settings:save', { ...form, taxRate: rate })
+    // The store type is fixed at setup and is not part of what gets saved.
+    const { storeType: _storeType, ...editable } = form
+    const result = await api('settings:save', { ...editable, taxRate: rate })
     setSaving(false)
     if (!result.ok) {
       setError(errorText(result))
@@ -99,6 +101,13 @@ export function GeneralSettingsTab({ onNotice }: { onNotice: (message: string | 
           onChange={(event) => update({ storeName: event.target.value })}
           maxLength={80}
           required
+        />
+        <TextField
+          label={t.settings.storeType}
+          hint={t.settings.storeTypeHint}
+          value={t.storeTypes[stored.storeType]}
+          readOnly
+          disabled
         />
         <div className="grid grid-cols-2 gap-4">
           <TextField

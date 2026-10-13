@@ -22,7 +22,8 @@ const SEED_SETTINGS: Record<string, string> = {
   store_phone: '',
   currency: 'USD',
   tax_rate: '0',
-  language: 'ar'
+  language: 'ar',
+  store_type: 'general'
 }
 
 const SEED_EXPENSE_CATEGORIES = ['إيجار', 'كهرباء', 'رواتب', 'نقل ومواصلات', 'أخرى']

@@ -5,6 +5,7 @@ import {
   type AppSettings,
   type Language
 } from '../../shared/settings'
+import { toStoreType, type StoreType } from '../../shared/store'
 import type { SessionUser } from '../auth/session'
 import { getDataSource } from '../database/data-source'
 import { Setting } from '../database/entities'
@@ -43,8 +44,15 @@ function toAppSettings(values: Map<string, string>): AppSettings {
     storeLogo: values.get('store_logo') || null,
     currency: values.get('currency') || 'USD',
     taxRate: Number.isFinite(taxRate) ? taxRate : 0,
-    language: toLanguage(values.get('language'))
+    language: toLanguage(values.get('language')),
+    storeType: toStoreType(values.get('store_type'))
   }
+}
+
+// The store type is written once by first-run setup; saveSettings never touches it.
+export async function readStoreType(manager: EntityManager): Promise<StoreType> {
+  const row = await manager.getRepository(Setting).findOneBy({ key: 'store_type' })
+  return toStoreType(row?.value ?? undefined)
 }
 
 export async function getSettings(): Promise<AppSettings> {

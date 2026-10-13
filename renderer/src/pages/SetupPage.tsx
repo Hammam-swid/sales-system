@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { PASSWORD_MIN_LENGTH } from '../../../shared/ipc'
 import type { Language } from '../../../shared/settings'
+import { STORE_TYPES, type StoreType } from '../../../shared/store'
 import { Logo } from '../components/Logo'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
@@ -15,6 +16,7 @@ import { useAuthStore } from '../store/auth'
 export function SetupPage() {
   const setUser = useAuthStore((state) => state.setUser)
   const [storeName, setStoreName] = useState('')
+  const [storeType, setStoreType] = useState<StoreType | ''>('')
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -26,11 +28,12 @@ export function SetupPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (password !== confirmPassword) return
+    if (password !== confirmPassword || storeType === '') return
     setSubmitting(true)
     setError(null)
     const result = await api('setup:createOwner', {
       storeName,
+      storeType,
       fullName,
       username,
       password,
@@ -75,6 +78,22 @@ export function SetupPage() {
               autoFocus
               required
             />
+            <SelectField
+              label={t.setup.storeType}
+              hint={t.setup.storeTypeHint}
+              value={storeType}
+              onChange={(event) => setStoreType(event.target.value as StoreType)}
+              required
+            >
+              <option value="" disabled>
+                {t.setup.chooseStoreType}
+              </option>
+              {STORE_TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {t.storeTypes[option]}
+                </option>
+              ))}
+            </SelectField>
             <TextField
               label={t.setup.fullName}
               name="fullName"

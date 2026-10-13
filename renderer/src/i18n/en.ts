@@ -36,6 +36,9 @@ export const en: Translations = {
     language: 'Language',
     storeName: 'Shop name',
     fullName: 'Your full name',
+    storeType: 'Business type',
+    storeTypeHint: 'Decides which features the application shows. It cannot be changed after setup.',
+    chooseStoreType: 'Choose a business type…',
     submit: 'Create account and start'
   },
 
@@ -145,6 +148,16 @@ export const en: Translations = {
     openingQuantity: 'Opening quantity',
     minQuantity: 'Reorder threshold',
     minQuantityHint: 'An alert appears when the quantity reaches this level',
+    expiryDate: 'Expiry date',
+    expiryDateHint: 'Optional. Leave empty for products that do not expire.',
+    expiryFilter: (count: number) => `Expiring soon (${count})`,
+    expired: 'Expired',
+    expiringSoon: 'Expiring soon',
+    warrantyMonths: 'Warranty (months)',
+    warrantyHint: 'Printed on the receipt. Enter 0 if the product has no warranty.',
+    trackStock: 'Track stock for this product',
+    trackStockHint: 'Untick for drinks and meals that are sold without a stock quantity',
+    untracked: 'No stock',
     status: 'Status',
     productActive: 'Product is active (shown at the point of sale)',
     archived: 'Archived',
@@ -200,7 +213,13 @@ export const en: Translations = {
     saved: 'Category saved',
     deleted: 'Category deleted',
     deleteTitle: 'Delete category',
-    deleteBody: (name: string) => `Delete the category "${name}"?`
+    deleteBody: (name: string) => `Delete the category "${name}"?`,
+    noteOptions: 'Ready-made notes',
+    noteOptionsHint:
+      'The cashier picks from these when selling this category’s items, e.g. no sauce. A sub-category with none uses its parent’s.',
+    noteOptionPlaceholder: 'e.g. no onion',
+    addNoteOption: 'Add',
+    removeNoteOption: (option: string) => `Remove "${option}"`
   },
 
   pos: {
@@ -248,7 +267,16 @@ export const en: Translations = {
     done: 'Sale completed',
     invoiceNumber: 'Invoice number',
     printReceipt: 'Print receipt',
-    newSale: 'New invoice'
+    newSale: 'New invoice',
+    categories: 'Categories',
+    orderType: 'Order type',
+    orderNumber: 'Order number',
+    lineNote: 'Note',
+    addNote: 'Add a note',
+    noteTitle: (name: string) => `Note: ${name}`,
+    noteApplyTo: (quantity: string) => `Apply to how many (of ${quantity})`,
+    noteAll: 'All',
+    expiredProduct: (name: string) => `Warning: ${name} has expired`
   },
 
   sales: {
@@ -507,6 +535,8 @@ export const en: Translations = {
     storeName: 'Shop name',
     storeAddress: 'Address',
     storePhone: 'Phone',
+    storeType: 'Business type',
+    storeTypeHint: 'Chosen during first-time setup and cannot be changed.',
     logo: 'Shop logo',
     logoHint: 'A PNG, JPG or WebP image no larger than 250 KB.',
     chooseLogo: 'Choose image',
@@ -566,7 +596,25 @@ export const en: Translations = {
     invoice: 'Sales invoice',
     cashier: 'Cashier',
     customer: 'Customer',
-    thanks: 'Thank you for shopping with us'
+    thanks: 'Thank you for shopping with us',
+    orderNumber: 'Order number',
+    warranty: (months: number, until: string) =>
+      `Warranty: ${months} ${months === 1 ? 'month' : 'months'}, until ${until}`
+  },
+
+  storeTypes: {
+    general: 'General shop',
+    grocery: 'Grocery shop',
+    cleaning: 'Cleaning supplies shop',
+    electronics: 'Phones, electronics and computers shop',
+    cafe: 'Cafe',
+    cafe_fast_food: 'Cafe and fast food'
+  },
+
+  orderTypes: {
+    dine_in: 'Dine in',
+    takeaway: 'Takeaway',
+    delivery: 'Delivery'
   },
 
   units: {

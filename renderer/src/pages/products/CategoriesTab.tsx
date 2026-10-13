@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { CornerDownLeft, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { CategoryDto } from '../../../../shared/catalog'
+import { CornerDownLeft, Pencil, Plus, Trash2, X } from 'lucide-react'
+import {
+  MAX_NOTE_OPTIONS,
+  MAX_NOTE_OPTION_LENGTH,
+  NOTE_SEPARATOR,
+  type CategoryDto
+} from '../../../../shared/catalog'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -12,6 +17,7 @@ import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { orderCategories } from '../../lib/categories'
 import { cn } from '../../lib/cn'
+import { useFeature } from '../../store/settings'
 
 type Dialog =
   | { kind: 'create' }
@@ -123,6 +129,16 @@ export function CategoriesTab({ categories, onNotice, onChanged }: CategoriesTab
   )
 }
 
+// Adds a ready-made note, ignoring blanks, repeats, and anything past the limit.
+function withOption(options: string[], text: string): string[] {
+  // The separator joins picked options into one note, so an option cannot contain it.
+  const option = text.replaceAll(NOTE_SEPARATOR.trim(), ' ').replace(/\s+/g, ' ').trim()
+  if (option === '' || options.includes(option) || options.length >= MAX_NOTE_OPTIONS) {
+    return options
+  }
+  return [...options, option]
+}
+
 interface CategoryFormModalProps {
   // Omit to create a new category.
   category?: CategoryDto
@@ -134,6 +150,9 @@ interface CategoryFormModalProps {
 function CategoryFormModal({ category, categories, onClose, onSaved }: CategoryFormModalProps) {
   const [name, setName] = useState(category?.name ?? '')
   const [parentId, setParentId] = useState<number | null>(category?.parentId ?? null)
+  const lineNotes = useFeature('lineNotes')
+  const [noteOptions, setNoteOptions] = useState<string[]>(category?.noteOptions ?? [])
+  const [newOption, setNewOption] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -146,11 +165,22 @@ function CategoryFormModal({ category, categories, onClose, onSaved }: CategoryF
     (other) => other.parentId === null && other.id !== category?.id
   )
 
+  const addOption = () => {
+    setNoteOptions((current) => withOption(current, newOption))
+    setNewOption('')
+  }
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setSaving(true)
     setError(null)
-    const result = await api('categories:save', { id: category?.id, name, parentId })
+    const result = await api('categories:save', {
+      id: category?.id,
+      name,
+      parentId,
+      // Includes whatever is still sitting in the input.
+      noteOptions: lineNotes ? withOption(noteOptions, newOption) : undefined
+    })
     setSaving(false)
     if (result.ok) onSaved()
     else setError(errorText(result))
@@ -184,6 +214,53 @@ function CategoryFormModal({ category, categories, onClose, onSaved }: CategoryF
             </option>
           ))}
         </SelectField>
+        {lineNotes && (
+          <div className="space-y-2">
+            <p className="type-label text-ink">{t.categories.noteOptions}</p>
+            {noteOptions.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {noteOptions.map((option) => (
+                  <li
+                    key={option}
+                    className="type-body-sm flex items-center gap-1 rounded-pill border border-border-strong bg-bg ps-3 text-ink"
+                  >
+                    {option}
+                    <IconButton
+                      icon={X}
+                      label={t.categories.removeNoteOption(option)}
+                      onClick={() =>
+                        setNoteOptions((current) => current.filter((other) => other !== option))
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {noteOptions.length < MAX_NOTE_OPTIONS && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newOption}
+                  onChange={(event) => setNewOption(event.target.value)}
+                  // Enter adds the option instead of saving the whole form.
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    event.preventDefault()
+                    addOption()
+                  }}
+                  maxLength={MAX_NOTE_OPTION_LENGTH}
+                  placeholder={t.categories.noteOptionPlaceholder}
+                  aria-label={t.categories.noteOptions}
+                  className="type-body-sm h-11 min-w-0 flex-1 rounded-sm border border-border-strong bg-bg px-3 text-ink placeholder:text-ink-muted"
+                />
+                <Button variant="secondary" onClick={addOption}>
+                  {t.categories.addNoteOption}
+                </Button>
+              </div>
+            )}
+            <p className="type-caption text-ink-muted">{t.categories.noteOptionsHint}</p>
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={onClose}>
             {t.common.cancel}

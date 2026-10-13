@@ -9,6 +9,8 @@ export interface CategoryDto {
   parentId: number | null
   // Products directly in this category (not counting sub-categories).
   productCount: number
+  // Ready-made line notes the cashier picks from when selling this category's products.
+  noteOptions: string[]
 }
 
 export interface SaveCategoryRequest {
@@ -16,6 +18,21 @@ export interface SaveCategoryRequest {
   id?: number
   name: string
   parentId: number | null
+  // Omit to leave the existing options as they are.
+  noteOptions?: string[]
+}
+
+export const MAX_NOTE_OPTIONS = 20
+export const MAX_NOTE_OPTION_LENGTH = 30
+// Joins the options picked for one line into its note.
+export const NOTE_SEPARATOR = '، '
+
+// The options offered for a product: its own category's, or failing that the parent's.
+export function noteOptionsFor(categories: CategoryDto[], categoryId: number | null): string[] {
+  const category = categories.find((candidate) => candidate.id === categoryId)
+  if (!category) return []
+  if (category.noteOptions.length > 0) return category.noteOptions
+  return categories.find((candidate) => candidate.id === category.parentId)?.noteOptions ?? []
 }
 
 export interface ProductDto {
@@ -31,6 +48,12 @@ export interface ProductDto {
   quantity: number
   minQuantity: number
   isLowStock: boolean
+  // YYYY-MM-DD, or null when the product does not expire.
+  expiryDate: string | null
+  // 0 means no warranty.
+  warrantyMonths: number
+  // false for items sold without a stock quantity.
+  trackStock: boolean
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -43,6 +66,10 @@ export interface ListProductsRequest {
   categoryId?: number | null
   status?: ProductStatusFilter
   lowStockOnly?: boolean
+  // Active products already expired or expiring within EXPIRY_WARNING_DAYS.
+  expiringOnly?: boolean
+  // Leaves out items sold without stock (they cannot be purchased or counted).
+  trackedOnly?: boolean
   page?: number
   pageSize?: number
 }
@@ -54,6 +81,8 @@ export interface ListProductsResponse {
   pageSize: number
   // Active products at or below their reorder threshold, regardless of the current filter.
   lowStockCount: number
+  // Active products already expired or expiring soon, regardless of the current filter.
+  expiringCount: number
 }
 
 export interface SaveProductRequest {
@@ -66,6 +95,9 @@ export interface SaveProductRequest {
   purchasePrice: number
   salePrice: number
   minQuantity: number
+  expiryDate: string | null
+  warrantyMonths: number
+  trackStock: boolean
   isActive: boolean
   // Opening stock; only read when creating. Later changes go through stock movements.
   quantity?: number

@@ -6,6 +6,7 @@ import {
   type HoldSaleRequest,
   type SaleDto
 } from '../../../../shared/sales'
+import { formatOrderNumber } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/Field'
@@ -61,6 +62,14 @@ export function PaymentModal({ cart, total, customer, onCompleted, onClose }: Pa
         <div className="space-y-6">
           <div className="flex flex-col items-center gap-2 text-center">
             <CircleCheck aria-hidden className="size-12 text-success" />
+            {done.sale.orderNumber !== null && (
+              <>
+                <p className="type-body-sm text-ink-muted">{t.pos.orderNumber}</p>
+                <p dir="ltr" className="type-h1 tabular-nums">
+                  {formatOrderNumber(done.sale.orderNumber)}
+                </p>
+              </>
+            )}
             <p className="type-body-sm text-ink-muted">{t.pos.invoiceNumber}</p>
             <p dir="ltr" className="type-h3 tabular-nums">
               {done.sale.invoiceNumber}

@@ -5,6 +5,7 @@ import {
   type ProductDto,
   type ProductUnit
 } from '../../../../shared/catalog'
+import { MAX_WARRANTY_MONTHS } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { CheckboxField, SelectField, TextField } from '../../components/ui/Field'
@@ -13,7 +14,7 @@ import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { categoryOptionLabel, orderCategories } from '../../lib/categories'
 import { parseNumber } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
+import { useCurrency, useFeature } from '../../store/settings'
 
 interface ProductFormModalProps {
   // Omit to create a new product.
@@ -29,6 +30,9 @@ function isKnownUnit(unit: string): unit is ProductUnit {
 
 export function ProductFormModal({ product, categories, onClose, onSaved }: ProductFormModalProps) {
   const currency = useCurrency()
+  const expiryDates = useFeature('expiryDates')
+  const warranty = useFeature('warranty')
+  const untrackedItems = useFeature('untrackedItems')
   const [name, setName] = useState(product?.name ?? '')
   const [barcode, setBarcode] = useState(product?.barcode ?? '')
   const [categoryId, setCategoryId] = useState<number | null>(product?.categoryId ?? null)
@@ -39,6 +43,10 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
   const [salePrice, setSalePrice] = useState(String(product?.salePrice ?? ''))
   const [quantity, setQuantity] = useState('0')
   const [minQuantity, setMinQuantity] = useState(String(product?.minQuantity ?? '0'))
+  const [expiryDate, setExpiryDate] = useState(product?.expiryDate ?? '')
+  const [warrantyMonths, setWarrantyMonths] = useState(String(product?.warrantyMonths ?? '0'))
+  // A shop that sells without stock (a cafe) starts new products that way.
+  const [trackStock, setTrackStock] = useState(product?.trackStock ?? !untrackedItems)
   const [isActive, setIsActive] = useState(product?.isActive ?? true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -49,9 +57,18 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const min = parseNumber(minQuantity)
-    const opening = parseNumber(quantity)
-    if (purchase === null || sale === null || min === null || (!product && opening === null)) {
+    const min = trackStock ? parseNumber(minQuantity) : 0
+    const opening = trackStock ? parseNumber(quantity) : 0
+    const months = parseNumber(warrantyMonths)
+    if (
+      purchase === null ||
+      sale === null ||
+      min === null ||
+      (!product && opening === null) ||
+      months === null ||
+      !Number.isInteger(months) ||
+      months > MAX_WARRANTY_MONTHS
+    ) {
       setError(t.errors.VALIDATION)
       return
     }
@@ -67,6 +84,9 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
       purchasePrice: purchase,
       salePrice: sale,
       minQuantity: min,
+      expiryDate: expiryDate === '' ? null : expiryDate,
+      warrantyMonths: months,
+      trackStock,
       isActive,
       quantity: product ? undefined : (opening ?? 0)
     })
@@ -152,7 +172,7 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
               </option>
             ))}
           </SelectField>
-          {!product && (
+          {!product && trackStock && (
             <TextField
               label={t.products.openingQuantity}
               value={quantity}
@@ -161,15 +181,56 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
               {...numberProps}
             />
           )}
-          <TextField
-            label={t.products.minQuantity}
-            value={minQuantity}
-            onChange={(event) => setMinQuantity(event.target.value)}
-            required
-            {...numberProps}
-          />
+          {trackStock && (
+            <TextField
+              label={t.products.minQuantity}
+              value={minQuantity}
+              onChange={(event) => setMinQuantity(event.target.value)}
+              required
+              {...numberProps}
+            />
+          )}
         </div>
-        <p className="type-caption text-ink-muted">{t.products.minQuantityHint}</p>
+        {trackStock && <p className="type-caption text-ink-muted">{t.products.minQuantityHint}</p>}
+
+        {(untrackedItems || !trackStock) && (
+          <div>
+            <CheckboxField
+              label={t.products.trackStock}
+              checked={trackStock}
+              onChange={(event) => setTrackStock(event.target.checked)}
+            />
+            <p className="type-caption text-ink-muted">{t.products.trackStockHint}</p>
+          </div>
+        )}
+
+        {(expiryDates || warranty) && (
+          <div className="grid grid-cols-2 gap-4">
+            {expiryDates && (
+              <TextField
+                label={t.products.expiryDate}
+                hint={t.products.expiryDateHint}
+                type="date"
+                value={expiryDate}
+                onChange={(event) => setExpiryDate(event.target.value)}
+                dir="ltr"
+                className="text-start"
+              />
+            )}
+            {warranty && (
+              <TextField
+                label={t.products.warrantyMonths}
+                hint={t.products.warrantyHint}
+                value={warrantyMonths}
+                onChange={(event) => setWarrantyMonths(event.target.value)}
+                max={MAX_WARRANTY_MONTHS}
+                required
+                {...numberProps}
+                step={1}
+              />
+            )}
+          </div>
+        )}
 
         {product && (
           <CheckboxField

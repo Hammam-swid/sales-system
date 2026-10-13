@@ -1,6 +1,7 @@
 // Types and money math for the checkout, invoices and returns module.
 // The math lives here so the screen and the main process always agree to the cent.
 import type { PartyDto } from './parties'
+import type { OrderType } from './store'
 
 export function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals
@@ -75,10 +76,14 @@ export interface PosProduct {
   id: number
   name: string
   barcode: string | null
+  categoryId: number | null
   unit: string
   salePrice: number
   // Stock on hand.
   quantity: number
+  // false for items sold without a stock quantity: `quantity` is then meaningless.
+  trackStock: boolean
+  expiryDate: string | null
   isActive: boolean
 }
 
@@ -86,6 +91,7 @@ export interface CartLineInput {
   productId: number
   quantity: number
   discount: number
+  note?: string | null
 }
 
 export interface CheckoutRequest {
@@ -93,6 +99,7 @@ export interface CheckoutRequest {
   // Absolute amount taken off the invoice.
   discount: number
   customerId: number | null
+  orderType?: OrderType | null
   // What the customer pays now; the rest becomes their debt.
   paidAmount: number
 }
@@ -101,16 +108,18 @@ export interface HoldSaleRequest {
   items: CartLineInput[]
   discount: number
   customerId: number | null
+  orderType?: OrderType | null
 }
 
 export interface HeldSaleDto {
   id: number
   customerId: number | null
   customerName: string | null
+  orderType: OrderType | null
   discount: number
   total: number
   createdAt: string
-  items: { product: PosProduct; quantity: number; discount: number }[]
+  items: { product: PosProduct; quantity: number; discount: number; note: string | null }[]
 }
 
 export interface SaleItemDto {
@@ -123,11 +132,17 @@ export interface SaleItemDto {
   discount: number
   total: number
   returnedQuantity: number
+  note: string | null
+  // Warranty at the time of sale; 0 means none.
+  warrantyMonths: number
 }
 
 export interface SaleDto {
   id: number
   invoiceNumber: string
+  orderType: OrderType | null
+  // Short daily number called out to the customer, when the shop uses them.
+  orderNumber: number | null
   status: SaleStatus
   customerId: number | null
   customerName: string | null

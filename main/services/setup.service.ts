@@ -2,11 +2,13 @@ import type { SetupRequest, UserDto } from '../../shared/ipc'
 import { LANGUAGES, type Language } from '../../shared/settings'
 import { setSession } from '../auth/session'
 import { getDataSource } from '../database/data-source'
-import { ExpenseCategory, User } from '../database/entities'
+import { STORE_TYPES, hasFeature } from '../../shared/store'
+import { Category, ExpenseCategory, User } from '../database/entities'
 import { AppError } from '../errors'
 import { hashPassword } from '../utils/password'
 import { recordAudit } from './audit.service'
 import { readSettingValues, writeSettingValues } from './settings.service'
+import { STARTER_CATEGORIES, STARTER_NOTE_OPTIONS } from './starter-categories'
 import { toUserDto } from './user.mapper'
 import { asObject, asOneOf, asPassword, asText, asUsername } from './validation'
 
@@ -29,6 +31,7 @@ export async function createFirstOwner(payload: unknown): Promise<UserDto> {
   const password = asPassword(input.password)
   const storeName = asText(input.storeName, 'storeName', 80)
   const language = asOneOf(input.language, LANGUAGES, 'language')
+  const storeType = asOneOf(input.storeType, STORE_TYPES, 'storeType')
 
   return getDataSource().transaction(async (manager) => {
     const users = manager.getRepository(User)
@@ -46,7 +49,8 @@ export async function createFirstOwner(payload: unknown): Promise<UserDto> {
       store_phone: '',
       currency: 'USD',
       tax_rate: '0',
-      language
+      language,
+      store_type: storeType
     }
     await writeSettingValues(
       manager,
@@ -57,6 +61,21 @@ export async function createFirstOwner(payload: unknown): Promise<UserDto> {
     if ((await categories.count()) === 0) {
       await categories.save(
         DEFAULT_EXPENSE_CATEGORIES[language].map((name) => categories.create({ name }))
+      )
+    }
+
+    const productCategories = manager.getRepository(Category)
+    if ((await productCategories.count()) === 0) {
+      await productCategories.save(
+        STARTER_CATEGORIES[storeType][language].map((name) =>
+          productCategories.create({
+            name,
+            parentId: null,
+            noteOptions: hasFeature(storeType, 'lineNotes')
+              ? JSON.stringify(STARTER_NOTE_OPTIONS[language][name] ?? [])
+              : null
+          })
+        )
       )
     }
 

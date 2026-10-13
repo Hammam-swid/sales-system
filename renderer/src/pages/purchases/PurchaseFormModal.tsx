@@ -59,7 +59,13 @@ export function PurchaseFormModal({ onClose, onSaved }: PurchaseFormModalProps) 
       return []
     }
     // Archived products are included: restocking one is how it comes back.
-    const result = await api('products:list', { search: term, status: 'all', pageSize: RESULT_LIMIT })
+    const result = await api('products:list', {
+      search: term,
+      status: 'all',
+      // Items sold without stock cannot be received.
+      trackedOnly: true,
+      pageSize: RESULT_LIMIT
+    })
     if (current !== requestId.current || !result.ok) return []
     setResults(result.data.items)
     return result.data.items

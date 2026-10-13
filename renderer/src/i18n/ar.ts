@@ -1,6 +1,7 @@
 import type { ProductUnit } from '../../../shared/catalog'
 import type { ErrorCode } from '../../../shared/ipc'
 import type { UserRole } from '../../../shared/permissions'
+import type { OrderType, StoreType } from '../../../shared/store'
 
 // Arabic is the primary language and defines the shape every other language must match.
 export const ar = {
@@ -38,6 +39,9 @@ export const ar = {
     language: 'اللغة',
     storeName: 'اسم المتجر',
     fullName: 'اسمك الكامل',
+    storeType: 'نوع النشاط',
+    storeTypeHint: 'يحدد الخصائص التي تظهر في البرنامج. لا يمكن تغييره بعد الإعداد.',
+    chooseStoreType: 'اختر نوع النشاط…',
     submit: 'إنشاء الحساب والبدء'
   },
 
@@ -147,6 +151,16 @@ export const ar = {
     openingQuantity: 'الكمية الافتتاحية',
     minQuantity: 'حد إعادة الطلب',
     minQuantityHint: 'يظهر تنبيه عندما تصل الكمية إلى هذا الحد',
+    expiryDate: 'تاريخ الانتهاء',
+    expiryDateHint: 'اختياري — اتركه فارغًا للمنتجات التي لا تنتهي صلاحيتها',
+    expiryFilter: (count: number) => `قريبة الانتهاء (${count})`,
+    expired: 'منتهي الصلاحية',
+    expiringSoon: 'قريب الانتهاء',
+    warrantyMonths: 'مدة الضمان (بالأشهر)',
+    warrantyHint: 'تُطبع على الإيصال. اكتب 0 إذا لم يكن للمنتج ضمان.',
+    trackStock: 'متابعة مخزون هذا المنتج',
+    trackStockHint: 'ألغِ التحديد للمشروبات والوجبات التي تُباع بدون كمية في المخزون',
+    untracked: 'بدون مخزون',
     status: 'الحالة',
     productActive: 'المنتج نشط (يظهر في نقطة البيع)',
     archived: 'مؤرشف',
@@ -202,7 +216,13 @@ export const ar = {
     saved: 'تم حفظ الفئة',
     deleted: 'تم حذف الفئة',
     deleteTitle: 'حذف الفئة',
-    deleteBody: (name: string) => `هل تريد حذف الفئة "${name}"؟`
+    deleteBody: (name: string) => `هل تريد حذف الفئة "${name}"؟`,
+    noteOptions: 'ملاحظات جاهزة',
+    noteOptionsHint:
+      'يختار منها البائع عند بيع أصناف هذه الفئة، مثل: بدون صوص. الفئة الفرعية بلا ملاحظات تستخدم ملاحظات فئتها الرئيسية.',
+    noteOptionPlaceholder: 'مثال: بدون بصل',
+    addNoteOption: 'إضافة',
+    removeNoteOption: (option: string) => `إزالة "${option}"`
   },
 
   pos: {
@@ -250,7 +270,16 @@ export const ar = {
     done: 'تم البيع بنجاح',
     invoiceNumber: 'رقم الفاتورة',
     printReceipt: 'طباعة الإيصال',
-    newSale: 'فاتورة جديدة'
+    newSale: 'فاتورة جديدة',
+    categories: 'الفئات',
+    orderType: 'نوع الطلب',
+    orderNumber: 'رقم الطلب',
+    lineNote: 'ملاحظة',
+    addNote: 'إضافة ملاحظة',
+    noteTitle: (name: string) => `ملاحظة: ${name}`,
+    noteApplyTo: (quantity: string) => `تطبيق على عدد (من ${quantity})`,
+    noteAll: 'الكل',
+    expiredProduct: (name: string) => `تنبيه: ${name} منتهي الصلاحية`
   },
 
   sales: {
@@ -509,6 +538,8 @@ export const ar = {
     storeName: 'اسم المتجر',
     storeAddress: 'العنوان',
     storePhone: 'الهاتف',
+    storeType: 'نوع النشاط',
+    storeTypeHint: 'يُحدَّد عند إعداد البرنامج لأول مرة ولا يمكن تغييره.',
     logo: 'شعار المتجر',
     logoHint: 'صورة PNG أو JPG أو WebP، بحجم لا يتجاوز 250 كيلوبايت.',
     chooseLogo: 'اختيار صورة',
@@ -567,8 +598,25 @@ export const ar = {
     invoice: 'فاتورة مبيعات',
     cashier: 'البائع',
     customer: 'العميل',
-    thanks: 'شكرًا لتسوقكم'
+    thanks: 'شكرًا لتسوقكم',
+    orderNumber: 'رقم الطلب',
+    warranty: (months: number, until: string) => `ضمان ${months} شهر — حتى ${until}`
   },
+
+  storeTypes: {
+    general: 'متجر عام',
+    grocery: 'محل مواد غذائية',
+    cleaning: 'محل مواد تنظيف',
+    electronics: 'محل هواتف وإكسسوارات إلكترونية وحواسيب',
+    cafe: 'مقهى',
+    cafe_fast_food: 'مقهى ووجبات سريعة'
+  } satisfies Record<StoreType, string>,
+
+  orderTypes: {
+    dine_in: 'محلي',
+    takeaway: 'سفري',
+    delivery: 'توصيل'
+  } satisfies Record<OrderType, string>,
 
   units: {
     piece: 'قطعة',

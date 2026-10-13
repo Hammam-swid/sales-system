@@ -1,4 +1,8 @@
-import type { CategoryDto } from '../../shared/catalog'
+import {
+  MAX_NOTE_OPTIONS,
+  MAX_NOTE_OPTION_LENGTH,
+  type CategoryDto
+} from '../../shared/catalog'
 import { getDataSource } from '../database/data-source'
 import { Category, Product } from '../database/entities'
 import { AppError } from '../errors'
@@ -22,8 +26,26 @@ export async function listCategories(): Promise<CategoryDto[]> {
     id: category.id,
     name: category.name,
     parentId: category.parentId,
-    productCount: countById.get(category.id) ?? 0
+    productCount: countById.get(category.id) ?? 0,
+    noteOptions: readNoteOptions(category)
   }))
+}
+
+function readNoteOptions(category: Category): string[] {
+  try {
+    const parsed: unknown = JSON.parse(category.noteOptions ?? '[]')
+    return Array.isArray(parsed) ? parsed.filter((option) => typeof option === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function asNoteOptions(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > MAX_NOTE_OPTIONS) {
+    throw new AppError('VALIDATION', 'noteOptions')
+  }
+  const options = value.map((option) => asText(option, 'noteOptions', MAX_NOTE_OPTION_LENGTH))
+  return [...new Set(options)]
 }
 
 // Creates or updates a category. The hierarchy is kept to two levels:
@@ -33,6 +55,8 @@ export async function saveCategory(payload: unknown): Promise<CategoryDto> {
   const id = asOptionalId(input.id, 'id')
   const name = asText(input.name, 'name', 60)
   const parentId = asOptionalId(input.parentId, 'parentId')
+  const noteOptions =
+    input.noteOptions === undefined ? undefined : JSON.stringify(asNoteOptions(input.noteOptions))
 
   return getDataSource().transaction(async (manager) => {
     const repository = manager.getRepository(Category)
@@ -50,16 +74,23 @@ export async function saveCategory(payload: unknown): Promise<CategoryDto> {
 
     let category: Category
     if (id === null) {
-      category = repository.create({ name, parentId })
+      category = repository.create({ name, parentId, noteOptions: noteOptions ?? null })
     } else {
       const existing = await repository.findOneBy({ id })
       if (!existing) throw new AppError('NOT_FOUND')
       category = Object.assign(existing, { name, parentId })
+      if (noteOptions !== undefined) category.noteOptions = noteOptions
     }
     await repository.save(category)
 
     const productCount = await manager.getRepository(Product).countBy({ categoryId: category.id })
-    return { id: category.id, name: category.name, parentId: category.parentId, productCount }
+    return {
+      id: category.id,
+      name: category.name,
+      parentId: category.parentId,
+      productCount,
+      noteOptions: readNoteOptions(category)
+    }
   })
 }
 
