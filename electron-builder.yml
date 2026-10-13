@@ -1,0 +1,51 @@
+appId: com.hammamdb.sales-system
+productName: Sales System
+copyright: Copyright © 2026 Hammam DB
+
+directories:
+  # Icons and installer resources live in build/; installers are written to dist/.
+  buildResources: build
+  output: dist
+
+# Only the compiled app is shipped. Sources, tests and tooling stay out of the installer.
+files:
+  - out/**
+  - package.json
+  # SQLite's C sources are only needed to compile the module, not to run it.
+  - "!node_modules/better-sqlite3/{deps,src}/**"
+
+asar: true
+# A native binary cannot be loaded from inside the archive.
+asarUnpack:
+  - "**/*.node"
+
+# Uses the prebuilt binary matching the bundled Electron; no compiler is needed.
+npmRebuild: true
+buildDependenciesFromSource: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.png
+
+nsis:
+  # A normal wizard rather than a silent one-click install, so the shop can choose the folder.
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Sales System
+  artifactName: SalesSystem-Setup-${version}.${ext}
+  # Uninstalling keeps the shop's database and backups (they live in the user data folder).
+  deleteAppDataOnUninstall: false
+
+mac:
+  target: dmg
+  category: public.app-category.business
+
+linux:
+  target: AppImage
+  category: Office

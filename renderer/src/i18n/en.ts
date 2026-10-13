@@ -30,6 +30,15 @@ export const en: Translations = {
     hidePassword: 'Hide password'
   },
 
+  setup: {
+    title: 'First-time setup',
+    subtitle: 'Create the shop owner’s account. You can add other staff later in the Users section.',
+    language: 'Language',
+    storeName: 'Shop name',
+    fullName: 'Your full name',
+    submit: 'Create account and start'
+  },
+
   keyboard: {
     capsLock: 'Caps Lock is on',
     arabicLayout: 'You are typing Arabic letters — check the keyboard language',

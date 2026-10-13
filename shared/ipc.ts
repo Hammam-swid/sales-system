@@ -89,6 +89,15 @@ export interface LoginRequest {
   password: string
 }
 
+// First-run setup: the owner account and the basics of the shop.
+export interface SetupRequest {
+  fullName: string
+  username: string
+  password: string
+  storeName: string
+  language: Language
+}
+
 export interface ChangePasswordRequest {
   currentPassword: string
   newPassword: string
@@ -119,6 +128,8 @@ export interface IpcChannels {
   'auth:logout': { request: void; response: null }
   'auth:me': { request: void; response: UserDto | null }
   'auth:changePassword': { request: ChangePasswordRequest; response: null }
+  'setup:status': { request: void; response: { needsSetup: boolean } }
+  'setup:createOwner': { request: SetupRequest; response: UserDto }
   'users:list': { request: void; response: UserDto[] }
   'users:create': { request: CreateUserRequest; response: UserDto }
   'users:update': { request: UpdateUserRequest; response: UserDto }
@@ -187,6 +198,8 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'auth:logout',
   'auth:me',
   'auth:changePassword',
+  'setup:status',
+  'setup:createOwner',
   'users:list',
   'users:create',
   'users:update',

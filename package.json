@@ -1,8 +1,9 @@
 {
   "name": "sales-system",
   "productName": "Sales System",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "General-purpose retail POS desktop application",
+  "author": "Hammam DB",
   "private": true,
   "main": "./out/main/main.js",
   "scripts": {
@@ -11,6 +12,8 @@
     "preview": "electron-vite preview",
     "seed": "electron-vite build && electron . --seed",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "pack": "npm run build && electron-builder --win --dir",
+    "dist": "npm run build && electron-builder --win",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

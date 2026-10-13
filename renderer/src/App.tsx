@@ -16,6 +16,7 @@ import { ProductsPage } from './pages/products/ProductsPage'
 import { ReportsPage } from './pages/reports/ReportsPage'
 import { SalesPage } from './pages/sales/SalesPage'
 import { SettingsPage } from './pages/settings/SettingsPage'
+import { SetupPage } from './pages/SetupPage'
 import { UsersPage } from './pages/UsersPage'
 import { useAuthStore, useCan } from './store/auth'
 
@@ -41,6 +42,7 @@ export default function App() {
     )
   }
 
+  if (status === 'setup') return <SetupPage />
   if (!user) return <LoginPage />
 
   // HashRouter, because the packaged app is loaded from a file:// URL.

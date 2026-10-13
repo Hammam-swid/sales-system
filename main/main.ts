@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { join } from 'node:path'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell } from 'electron'
 import { closeDatabase, initDatabase } from './database/data-source'
 import { seedDatabase } from './database/seed'
 import { registerIpcHandlers } from './ipc'
@@ -48,6 +48,10 @@ async function bootstrap(): Promise<void> {
     app.quit()
     return
   }
+
+  // The installed app has no use for the default menu, and it would expose
+  // developer tools and page reload to whoever is at the till.
+  if (app.isPackaged) Menu.setApplicationMenu(null)
 
   registerIpcHandlers()
   startBackupScheduler()
