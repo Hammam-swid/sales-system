@@ -10,7 +10,7 @@ import {
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { cn } from '../../lib/cn'
 import { formatMoney, formatQuantity, parseNumber } from '../../lib/format'

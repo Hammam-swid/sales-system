@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { SaleDto } from '../../../shared/sales'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 import { formatDateTime, formatMoney, formatQuantity } from '../lib/format'
 import { useAuthStore } from '../store/auth'
 import { usePrintStore } from '../store/print'
@@ -16,6 +16,7 @@ export function Receipt({ sale }: { sale: SaleDto }) {
   return (
     <div className="receipt">
       <header className="receipt-center">
+        {settings.storeLogo && <img src={settings.storeLogo} alt="" className="receipt-logo" />}
         <div className="receipt-title">{settings.storeName || t.appName}</div>
         {settings.storeAddress && <div>{settings.storeAddress}</div>}
         {settings.storePhone && <div dir="ltr">{settings.storePhone}</div>}

@@ -1,6 +1,6 @@
 import logoColor from '../assets/logos/logo-color.svg'
 import logoWhite from '../assets/logos/logo-white.svg'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 
 interface LogoProps {
   // 'white' for navy, dark and gradient grounds; 'color' for white and light grounds.

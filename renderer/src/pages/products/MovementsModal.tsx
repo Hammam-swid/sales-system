@@ -3,7 +3,7 @@ import type { ProductDto, StockMovementDto, StockMovementType } from '../../../.
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { formatDateTime, formatQuantity } from '../../lib/format'
 

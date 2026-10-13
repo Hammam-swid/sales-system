@@ -13,7 +13,7 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import type { Permission } from '../../shared/permissions'
-import { t } from './i18n/ar'
+import { t } from './i18n'
 
 export interface NavItem {
   path: string
@@ -49,5 +49,6 @@ export const BUILT_PATHS: readonly string[] = [
   '/purchases',
   '/expenses',
   '/reports',
-  '/users'
+  '/users',
+  '/settings'
 ]

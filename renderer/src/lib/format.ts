@@ -1,5 +1,4 @@
-// Western digits (0-9) throughout the product, with Arabic separators and month names.
-const LOCALE = 'ar-u-nu-latn'
+import { locale as LOCALE } from '../i18n'
 
 interface MoneyStyle {
   symbol: string
@@ -38,7 +37,8 @@ export function formatMoney(value: number, currency: string): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   })
-  const separator = symbol.length > 1 ? ' ' : ''
+  // Non-breaking, so a code such as "SAR" never wraps away from its amount.
+  const separator = symbol.length > 1 ? ' ' : ''
   return `⁦${symbol}${separator}${amount}⁩`
 }
 

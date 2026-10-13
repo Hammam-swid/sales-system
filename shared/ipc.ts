@@ -2,7 +2,6 @@
 // Every IPC channel is declared here once, with its request and response types.
 import type {
   AdjustStockRequest,
-  AppSettings,
   CategoryDto,
   DeleteProductResponse,
   ListProductsRequest,
@@ -31,6 +30,16 @@ import type {
   StatementDto
 } from './parties'
 import type { UserRole } from './permissions'
+import type {
+  AppSettings,
+  BackupConfig,
+  BackupFile,
+  BackupStatus,
+  CreateBackupRequest,
+  Language,
+  RestoreBackupRequest,
+  SaveSettingsRequest
+} from './settings'
 import type {
   BalancesReport,
   DateRangeRequest,
@@ -115,6 +124,15 @@ export interface IpcChannels {
   'users:update': { request: UpdateUserRequest; response: UserDto }
   'users:resetPassword': { request: ResetPasswordRequest; response: null }
   'settings:get': { request: void; response: AppSettings }
+  'settings:save': { request: SaveSettingsRequest; response: AppSettings }
+  // Readable before sign-in, so the login screen appears in the shop's language.
+  'app:locale': { request: void; response: { language: Language } }
+  'backup:status': { request: void; response: BackupStatus }
+  'backup:saveConfig': { request: BackupConfig; response: BackupStatus }
+  'backup:chooseFolder': { request: void; response: { path: string | null } }
+  // null when the user cancelled the save dialog.
+  'backup:create': { request: CreateBackupRequest; response: BackupFile | null }
+  'backup:restore': { request: RestoreBackupRequest; response: { restored: boolean } }
   'categories:list': { request: void; response: CategoryDto[] }
   'categories:save': { request: SaveCategoryRequest; response: CategoryDto }
   'categories:delete': { request: { id: number }; response: null }
@@ -174,6 +192,13 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'users:update',
   'users:resetPassword',
   'settings:get',
+  'settings:save',
+  'app:locale',
+  'backup:status',
+  'backup:saveConfig',
+  'backup:chooseFolder',
+  'backup:create',
+  'backup:restore',
   'categories:list',
   'categories:save',
   'categories:delete',
@@ -240,6 +265,8 @@ export type ErrorCode =
   | 'RETURN_EXCEEDS'
   | 'RECORD_IN_USE'
   | 'PAYMENT_EXCEEDS'
+  | 'INVALID_BACKUP'
+  | 'BACKUP_FAILED'
   | 'INTERNAL'
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ErrorCode }

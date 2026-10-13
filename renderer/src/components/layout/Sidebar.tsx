@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { can } from '../../../../shared/permissions'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { cn } from '../../lib/cn'
 import { NAV_ITEMS } from '../../navigation'
 import { useAuthStore } from '../../store/auth'

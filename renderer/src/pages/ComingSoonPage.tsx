@@ -1,6 +1,6 @@
 import { Hammer } from 'lucide-react'
 import { Card } from '../components/ui/Card'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 
 export function ComingSoonPage() {
   return (

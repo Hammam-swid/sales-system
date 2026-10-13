@@ -1,5 +1,5 @@
 import type { Api, ErrorCode, IpcResult } from '../../../shared/ipc'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 import { useAuthStore } from '../store/auth'
 
 // Same signature as window.api.invoke, plus one cross-cutting rule:

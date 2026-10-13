@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { Alert } from './Alert'
 import { Button } from './Button'
 import { Modal } from './Modal'

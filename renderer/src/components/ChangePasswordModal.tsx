@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { PASSWORD_MIN_LENGTH } from '../../../shared/ipc'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 import { api, errorText } from '../lib/api'
 import { Alert } from './ui/Alert'
 import { Button } from './ui/Button'

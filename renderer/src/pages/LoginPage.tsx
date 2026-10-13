@@ -4,7 +4,7 @@ import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { TextField } from "../components/ui/Field";
 import { PasswordField } from "../components/ui/PasswordField";
-import { t } from "../i18n/ar";
+import { t } from "../i18n";
 import { api, errorText } from "../lib/api";
 import { hasArabicLetters } from "../lib/text";
 import { useAuthStore } from "../store/auth";

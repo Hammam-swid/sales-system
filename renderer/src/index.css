@@ -347,6 +347,14 @@
   text-align: center;
 }
 
+.receipt-logo {
+  display: block;
+  max-width: 40mm;
+  max-height: 22mm;
+  margin: 0 auto 2mm;
+  object-fit: contain;
+}
+
 .receipt-title {
   font-size: 16px;
   line-height: 24px;

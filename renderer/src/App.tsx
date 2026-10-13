@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { RequirePermission } from './components/RequirePermission'
-import { t } from './i18n/ar'
+import { t } from './i18n'
 import { BUILT_PATHS, NAV_ITEMS } from './navigation'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 import { ExpensesPage } from './pages/expenses/ExpensesPage'
@@ -15,6 +15,7 @@ import { PurchasesPage } from './pages/purchases/PurchasesPage'
 import { ProductsPage } from './pages/products/ProductsPage'
 import { ReportsPage } from './pages/reports/ReportsPage'
 import { SalesPage } from './pages/sales/SalesPage'
+import { SettingsPage } from './pages/settings/SettingsPage'
 import { UsersPage } from './pages/UsersPage'
 import { useAuthStore, useCan } from './store/auth'
 
@@ -93,6 +94,14 @@ export default function App() {
             element={
               <RequirePermission permission="expenses.manage">
                 <ExpensesPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <RequirePermission permission="settings.manage">
+                <SettingsPage />
               </RequirePermission>
             }
           />

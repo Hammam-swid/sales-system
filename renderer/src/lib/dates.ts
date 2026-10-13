@@ -1,3 +1,5 @@
+import { locale } from '../i18n'
+
 // Calendar-day helpers. Days are handled as YYYY-MM-DD strings in the shop's local time,
 // never as UTC instants, so "today" is the day on the wall clock.
 
@@ -34,8 +36,8 @@ export function yearStart(): string {
   return toDay(new Date(new Date().getFullYear(), 0, 1))
 }
 
-const monthFormat = new Intl.DateTimeFormat('ar-u-nu-latn', { month: 'long', year: 'numeric' })
-const shortDayFormat = new Intl.DateTimeFormat('ar-u-nu-latn', { day: 'numeric', month: 'short' })
+const monthFormat = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' })
+const shortDayFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
 
 // Formats a YYYY-MM month key, e.g. "أكتوبر 2026".
 export function formatMonth(month: string): string {
@@ -49,7 +51,7 @@ export function formatShortDay(day: string): string {
   return shortDayFormat.format(new Date(year, month - 1, date))
 }
 
-const dayFormat =new Intl.DateTimeFormat('ar-u-nu-latn', { dateStyle: 'medium' })
+const dayFormat = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
 
 // Formats a YYYY-MM-DD day without shifting it across time zones.
 export function formatDay(day: string): string {

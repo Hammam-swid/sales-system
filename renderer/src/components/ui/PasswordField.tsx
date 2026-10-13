@@ -1,6 +1,6 @@
 import { useState, type InputHTMLAttributes, type KeyboardEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { hasArabicLetters } from '../../lib/text'
 import { TextField } from './Field'
 

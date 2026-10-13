@@ -1,19 +1,22 @@
 import { create } from 'zustand'
-import type { AppSettings } from '../../../shared/catalog'
+import type { AppSettings } from '../../../shared/settings'
+import { language } from '../i18n'
 import { api } from '../lib/api'
 
 const DEFAULTS: AppSettings = {
   storeName: '',
   storeAddress: '',
   storePhone: '',
+  storeLogo: null,
   currency: 'USD',
   taxRate: 0,
-  language: 'ar'
+  language
 }
 
 interface SettingsState {
   settings: AppSettings
   load: () => Promise<void>
+  set: (settings: AppSettings) => void
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -21,7 +24,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   load: async () => {
     const result = await api('settings:get')
     if (result.ok) set({ settings: result.data })
-  }
+  },
+  set: (settings) => set({ settings })
 }))
 
 export function useCurrency(): string {

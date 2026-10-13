@@ -4,6 +4,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { closeDatabase, initDatabase } from './database/data-source'
 import { seedDatabase } from './database/seed'
 import { registerIpcHandlers } from './ipc'
+import { startBackupScheduler } from './services/backup.service'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -49,6 +50,7 @@ async function bootstrap(): Promise<void> {
   }
 
   registerIpcHandlers()
+  startBackupScheduler()
   createWindow()
 
   app.on('activate', () => {

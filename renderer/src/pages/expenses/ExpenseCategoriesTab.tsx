@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { TextField } from '../../components/ui/Field'
 import { IconButton } from '../../components/ui/IconButton'
 import { Modal } from '../../components/ui/Modal'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 
 type Dialog =

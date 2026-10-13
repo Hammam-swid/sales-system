@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
 import type { SalesGrouping, SalesPeriod } from '../../../../shared/reports'
-import { t } from '../../i18n/ar'
+import { isRtl, t } from '../../i18n'
 import { formatDay, formatMonth, formatShortDay } from '../../lib/dates'
 import { formatMoney } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
@@ -36,7 +36,7 @@ interface SalesChartProps {
   groupBy: SalesGrouping
 }
 
-// Net sales per period. Time runs right to left, matching the page direction.
+// Net sales per period. Time runs in the reading direction of the interface language.
 export function SalesChart({ periods, groupBy }: SalesChartProps) {
   const currency = useCurrency()
 
@@ -44,9 +44,9 @@ export function SalesChart({ periods, groupBy }: SalesChartProps) {
     const point = active ? (payload[0]?.payload as SalesPeriod | undefined) : undefined
     if (!point) return null
     return (
-      // The chart itself is laid out left-to-right; its text is still Arabic.
+      // The chart itself is laid out left-to-right; its text follows the interface language.
       <div
-        dir="rtl"
+        dir={isRtl ? 'rtl' : 'ltr'}
         className="type-body-sm rounded-md border border-border bg-bg px-3 py-2 text-ink shadow-md"
       >
         <p className="type-label">{periodLabel(point.period, groupBy)}</p>
@@ -69,7 +69,7 @@ export function SalesChart({ periods, groupBy }: SalesChartProps) {
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="period"
-            reversed
+            reversed={isRtl}
             tickFormatter={(period: string) => axisLabel(period, groupBy)}
             tick={{ fill: 'var(--ink-muted)', fontSize: 12 }}
             tickLine={false}
@@ -77,7 +77,7 @@ export function SalesChart({ periods, groupBy }: SalesChartProps) {
             minTickGap={24}
           />
           <YAxis
-            orientation="right"
+            orientation={isRtl ? 'right' : 'left'}
             tickFormatter={(value: number) => compact.format(value)}
             tick={{ fill: 'var(--ink-muted)', fontSize: 12 }}
             tickLine={false}

@@ -1,9 +1,8 @@
 import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { app, BrowserWindow, dialog } from 'electron'
 import ExcelJS from 'exceljs'
 import type { ExportCell, ExportResult } from '../../shared/reports'
 import { AppError } from '../errors'
+import { activeWindow, chooseSavePath } from '../utils/dialogs'
 import { asObject, asText } from './validation'
 
 const MAX_SHEETS = 10
@@ -11,33 +10,19 @@ const MAX_COLUMNS = 30
 const MAX_ROWS = 50_000
 const MAX_CELL_LENGTH = 1000
 
-function activeWindow(): BrowserWindow {
-  const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-  if (!window) throw new AppError('INTERNAL')
-  return window
-}
-
 function safeFileName(value: unknown): string {
   const name = asText(value, 'fileName', 80).replace(/[^\p{L}\p{N} _.-]/gu, '').trim()
   if (name === '') throw new AppError('VALIDATION', 'fileName')
   return name
 }
 
-// Asks the user where to save. In unpackaged development builds, POS_EXPORT_DIR
-// skips the dialog so automated checks can run unattended.
-async function chooseTarget(fileName: string, extension: 'xlsx' | 'pdf'): Promise<string | null> {
-  const unattendedDir = app.isPackaged ? undefined : process.env.POS_EXPORT_DIR
-  if (unattendedDir) return join(unattendedDir, `${fileName}.${extension}`)
-
-  const result = await dialog.showSaveDialog(activeWindow(), {
-    defaultPath: join(app.getPath('documents'), `${fileName}.${extension}`),
-    filters: [
-      extension === 'xlsx'
-        ? { name: 'Excel', extensions: ['xlsx'] }
-        : { name: 'PDF', extensions: ['pdf'] }
-    ]
-  })
-  return result.canceled || !result.filePath ? null : result.filePath
+function chooseTarget(fileName: string, extension: 'xlsx' | 'pdf'): Promise<string | null> {
+  return chooseSavePath(
+    `${fileName}.${extension}`,
+    extension === 'xlsx'
+      ? { name: 'Excel', extensions: ['xlsx'] }
+      : { name: 'PDF', extensions: ['pdf'] }
+  )
 }
 
 function asCell(value: unknown): ExportCell {

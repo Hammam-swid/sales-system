@@ -5,7 +5,7 @@ import type {
   SavePartyRequest,
   StatementDto
 } from '../../../../shared/parties'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { api } from '../../lib/api'
 
 // Customers and suppliers share one screen; this is everything that differs between them.

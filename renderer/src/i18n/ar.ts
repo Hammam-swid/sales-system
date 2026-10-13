@@ -2,8 +2,8 @@ import type { ProductUnit } from '../../../shared/catalog'
 import type { ErrorCode } from '../../../shared/ipc'
 import type { UserRole } from '../../../shared/permissions'
 
-// All UI text lives here so a second language can be added later without touching components.
-export const t = {
+// Arabic is the primary language and defines the shape every other language must match.
+export const ar = {
   appName: 'نظام المبيعات',
   brand: 'همام DB',
   tagline: 'نقطة بيع واحدة لكل أنواع المتاجر',
@@ -490,6 +490,70 @@ export const t = {
     total: 'الإجمالي'
   },
 
+  settings: {
+    title: 'الإعدادات',
+    subtitle: 'بيانات المتجر، العملة والضريبة، والنسخ الاحتياطي',
+    tabGeneral: 'عام',
+    tabBackup: 'النسخ الاحتياطي',
+    storeSection: 'بيانات المتجر',
+    storeSectionHint: 'تظهر هذه البيانات على الإيصالات المطبوعة.',
+    storeName: 'اسم المتجر',
+    storeAddress: 'العنوان',
+    storePhone: 'الهاتف',
+    logo: 'شعار المتجر',
+    logoHint: 'صورة PNG أو JPG أو WebP، بحجم لا يتجاوز 250 كيلوبايت.',
+    chooseLogo: 'اختيار صورة',
+    removeLogo: 'إزالة الشعار',
+    logoTooLarge: 'حجم الصورة كبير. اختر صورة أصغر من 250 كيلوبايت.',
+    logoWrongType: 'نوع الملف غير مدعوم. اختر صورة PNG أو JPG أو WebP.',
+    salesSection: 'البيع والعرض',
+    currency: 'العملة',
+    currencyHint: 'رمز دولي مثل USD أو SAR أو SYP، أو تسمية قصيرة خاصة بك.',
+    taxRate: 'نسبة الضريبة الافتراضية (%)',
+    taxRateHint: 'تُطبَّق على الفواتير الجديدة فقط؛ الفواتير السابقة لا تتغير.',
+    language: 'لغة الواجهة',
+    languageHint: 'يُعاد تحميل البرنامج لتطبيق اللغة الجديدة.',
+    languageAr: 'العربية',
+    languageEn: 'English',
+    saved: 'تم حفظ الإعدادات',
+    autoSection: 'النسخ الاحتياطي التلقائي',
+    autoEnabled: 'تفعيل النسخ الاحتياطي التلقائي',
+    interval: 'التكرار',
+    intervalDaily: 'يوميًا',
+    intervalWeekly: 'أسبوعيًا',
+    keep: 'عدد النسخ التلقائية المحفوظة',
+    keepHint: 'تُحذف النسخ التلقائية الأقدم تلقائيًا. النسخ اليدوية لا تُحذف.',
+    directory: 'مجلد النسخ الاحتياطي',
+    directoryHint: 'يُفضَّل مجلد على قرص آخر أو مجلد مزامنة سحابية، حتى لا تضيع النسخ مع تعطل الجهاز.',
+    chooseFolder: 'اختيار مجلد',
+    configSaved: 'تم حفظ إعدادات النسخ الاحتياطي',
+    lastBackup: 'آخر نسخة احتياطية',
+    never: 'لم تُنشأ نسخة بعد',
+    manualSection: 'نسخة احتياطية الآن',
+    backupNow: 'إنشاء نسخة في المجلد',
+    backupSaveAs: 'حفظ نسخة في مكان آخر…',
+    backupCreated: (name: string) => `تم إنشاء النسخة الاحتياطية: ${name}`,
+    backupsList: 'النسخ المتوفرة في المجلد',
+    noBackups: 'لا توجد نسخ احتياطية في هذا المجلد',
+    fileName: 'الملف',
+    size: 'الحجم',
+    created: 'تاريخ الإنشاء',
+    kind: 'النوع',
+    kindAuto: 'تلقائية',
+    kindManual: 'يدوية',
+    kindBeforeRestore: 'قبل الاستعادة',
+    restore: 'استعادة',
+    restoreFromFile: 'استعادة من ملف…',
+    restoreTitle: 'استعادة نسخة احتياطية',
+    restoreBody: (name: string) =>
+      `سيتم استبدال كل البيانات الحالية بمحتوى النسخة "${name}". كل ما أُدخل بعد تاريخ هذه النسخة سيُفقد. تُحفظ نسخة من البيانات الحالية أولًا في مجلد النسخ الاحتياطي. هل تريد المتابعة؟`,
+    restoreFileBody:
+      'سيتم استبدال كل البيانات الحالية بمحتوى الملف الذي تختاره. تُحفظ نسخة من البيانات الحالية أولًا في مجلد النسخ الاحتياطي. هل تريد المتابعة؟',
+    restoreConfirm: 'استعادة واستبدال البيانات',
+    restoreOwnerOnly: 'استعادة النسخ الاحتياطية متاحة للمالك فقط.',
+    megabytes: (value: string) => `${value} م.ب`
+  },
+
   receipt: {
     invoice: 'فاتورة مبيعات',
     cashier: 'البائع',
@@ -533,6 +597,10 @@ export const t = {
     RETURN_EXCEEDS: 'كمية الإرجاع أكبر من الكمية المتاحة للإرجاع.',
     RECORD_IN_USE: 'لا يمكن الحذف لوجود فواتير أو دفعات أو رصيد مرتبط بهذا السجل.',
     PAYMENT_EXCEEDS: 'مبلغ الدفعة أكبر من الرصيد المستحق.',
+    INVALID_BACKUP: 'الملف ليس نسخة احتياطية صالحة لهذا البرنامج، أو أنه من إصدار أحدث.',
+    BACKUP_FAILED: 'تعذر إنشاء النسخة الاحتياطية. تحقق من المجلد ومن المساحة المتوفرة.',
     INTERNAL: 'حدث خطأ غير متوقع. حاول مرة أخرى.'
   } satisfies Record<ErrorCode, string>
 }
+
+export type Translations = typeof ar

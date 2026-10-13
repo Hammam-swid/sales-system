@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import type { Permission } from '../../../shared/permissions'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 import { useCan } from '../store/auth'
 import { Card } from './ui/Card'
 

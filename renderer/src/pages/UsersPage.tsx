@@ -9,12 +9,10 @@ import { Card } from '../components/ui/Card'
 import { CheckboxField, SelectField, TextField } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
 import { PasswordField } from '../components/ui/PasswordField'
-import { t } from '../i18n/ar'
+import { t } from '../i18n'
 import { api, errorText } from '../lib/api'
+import { formatDate } from '../lib/format'
 import { useAuthStore } from '../store/auth'
-
-// Western digits throughout the product, as chosen for this app.
-const dateFormat = new Intl.DateTimeFormat('ar-u-nu-latn', { dateStyle: 'medium' })
 
 type Dialog =
   | { kind: 'create' }
@@ -119,7 +117,7 @@ export function UsersPage() {
                   </Badge>
                 </td>
                 <td className="px-6 py-3 tabular-nums text-ink-muted">
-                  {dateFormat.format(new Date(user.createdAt))}
+                  {formatDate(user.createdAt)}
                 </td>
                 <td className="px-6 py-3">
                   {canManage(user) && (

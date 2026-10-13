@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, KeyRound, LogOut, Moon, Sun } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { t } from '../../i18n/ar'
+import { t } from '../../i18n'
 import { api } from '../../lib/api'
 import { NAV_ITEMS } from '../../navigation'
 import { useAuthStore } from '../../store/auth'
