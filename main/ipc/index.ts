@@ -1,5 +1,6 @@
 import { registerAppIpc } from './app.ipc'
 import { registerAuthIpc } from './auth.ipc'
+import { registerExpensesIpc } from './expenses.ipc'
 import { registerPartiesIpc } from './parties.ipc'
 import { registerProductsIpc } from './products.ipc'
 import { registerSalesIpc } from './sales.ipc'
@@ -14,4 +15,5 @@ export function registerIpcHandlers(): void {
   registerProductsIpc()
   registerSalesIpc()
   registerPartiesIpc()
+  registerExpensesIpc()
 }

@@ -50,6 +50,23 @@ export function asOneOf<T extends string>(value: unknown, options: readonly T[],
   return value as T
 }
 
+// A real calendar day written as YYYY-MM-DD.
+export function asDate(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AppError('VALIDATION', field)
+  }
+  const parsed = new Date(`${value}T00:00:00Z`)
+  // Rejects impossible days such as 2026-02-31, which Date would roll over.
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new AppError('VALIDATION', field)
+  }
+  return value
+}
+
+export function asOptionalDate(value: unknown, field: string): string | null {
+  return value === null || value === undefined || value === '' ? null : asDate(value, field)
+}
+
 export function asBoolean(value: unknown, field: string): boolean {
   if (typeof value !== 'boolean') throw new AppError('VALIDATION', field)
   return value

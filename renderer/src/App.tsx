@@ -5,6 +5,7 @@ import { RequirePermission } from './components/RequirePermission'
 import { t } from './i18n/ar'
 import { BUILT_PATHS, NAV_ITEMS } from './navigation'
 import { ComingSoonPage } from './pages/ComingSoonPage'
+import { ExpensesPage } from './pages/expenses/ExpensesPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { PartiesPage } from './pages/parties/PartiesPage'
@@ -83,6 +84,14 @@ export default function App() {
             element={
               <RequirePermission permission="purchases.manage">
                 <PurchasesPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="expenses"
+            element={
+              <RequirePermission permission="expenses.manage">
+                <ExpensesPage />
               </RequirePermission>
             }
           />

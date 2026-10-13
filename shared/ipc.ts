@@ -13,6 +13,14 @@ import type {
   StockMovementDto
 } from './catalog'
 import type {
+  ExpenseCategoryDto,
+  ExpenseDto,
+  ListExpensesRequest,
+  ListExpensesResponse,
+  SaveExpenseCategoryRequest,
+  SaveExpenseRequest
+} from './expenses'
+import type {
   CreatePurchaseRequest,
   ListPurchasesRequest,
   ListPurchasesResponse,
@@ -120,6 +128,12 @@ export interface IpcChannels {
   'purchases:list': { request: ListPurchasesRequest; response: ListPurchasesResponse }
   'purchases:get': { request: { id: number }; response: PurchaseDto }
   'purchases:create': { request: CreatePurchaseRequest; response: PurchaseDto }
+  'expenseCategories:list': { request: void; response: ExpenseCategoryDto[] }
+  'expenseCategories:save': { request: SaveExpenseCategoryRequest; response: ExpenseCategoryDto }
+  'expenseCategories:delete': { request: { id: number }; response: null }
+  'expenses:list': { request: ListExpensesRequest; response: ListExpensesResponse }
+  'expenses:save': { request: SaveExpenseRequest; response: ExpenseDto }
+  'expenses:delete': { request: { id: number }; response: null }
   'sales:checkout': { request: CheckoutRequest; response: SaleDto }
   'sales:hold': { request: HoldSaleRequest; response: { id: number } }
   'sales:held': { request: void; response: HeldSaleDto[] }
@@ -167,6 +181,12 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'purchases:list',
   'purchases:get',
   'purchases:create',
+  'expenseCategories:list',
+  'expenseCategories:save',
+  'expenseCategories:delete',
+  'expenses:list',
+  'expenses:save',
+  'expenses:delete',
   'sales:checkout',
   'sales:hold',
   'sales:held',
