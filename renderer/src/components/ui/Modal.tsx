@@ -1,16 +1,20 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { t } from '../../i18n/ar'
+import { cn } from '../../lib/cn'
 
 interface ModalProps {
   title: string
   onClose: () => void
+  size?: 'md' | 'lg'
   children: ReactNode
 }
 
+const WIDTHS = { md: 'w-[min(480px,calc(100vw-32px))]', lg: 'w-[min(720px,calc(100vw-32px))]' }
+
 // Built on the native <dialog>, which provides the focus trap, Escape handling and backdrop.
 // Mount it to open, unmount it to close.
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, onClose, size = 'md', children }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -26,7 +30,10 @@ export function Modal({ title, onClose, children }: ModalProps) {
         event.preventDefault()
         onClose()
       }}
-      className="m-auto w-[min(480px,calc(100vw-32px))] rounded-lg border border-border bg-bg p-0 text-ink shadow-lg"
+      className={cn(
+        'm-auto max-h-[calc(100vh-32px)] rounded-lg border border-border bg-bg p-0 text-ink shadow-lg',
+        WIDTHS[size]
+      )}
     >
       <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
         <h2 className="type-h4">{title}</h2>

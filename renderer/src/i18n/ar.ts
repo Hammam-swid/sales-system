@@ -1,3 +1,4 @@
+import type { ProductUnit } from '../../../shared/catalog'
 import type { ErrorCode } from '../../../shared/ipc'
 import type { UserRole } from '../../../shared/permissions'
 
@@ -106,6 +107,100 @@ export const t = {
     passwordChanged: 'تم تغيير كلمة المرور'
   },
 
+  products: {
+    title: 'المنتجات والمخزون',
+    subtitle: 'إدارة المنتجات والفئات وحركات المخزون',
+    tabProducts: 'المنتجات',
+    tabCategories: 'الفئات',
+    add: 'إضافة منتج',
+    edit: 'تعديل المنتج',
+    searchPlaceholder: 'ابحث بالاسم أو امسح الباركود…',
+    allCategories: 'كل الفئات',
+    noCategory: 'بدون فئة',
+    statusActive: 'النشطة',
+    statusInactive: 'المؤرشفة',
+    statusAll: 'الكل',
+    lowStock: 'مخزون منخفض',
+    lowStockFilter: (count: number) => `مخزون منخفض (${count})`,
+    name: 'اسم المنتج',
+    barcode: 'الباركود',
+    barcodeHint: 'اختياري — يمكنك مسحه بالقارئ مباشرة',
+    category: 'الفئة',
+    unit: 'الوحدة',
+    purchasePrice: 'سعر الشراء',
+    salePrice: 'سعر البيع',
+    quantity: 'الكمية',
+    openingQuantity: 'الكمية الافتتاحية',
+    minQuantity: 'حد إعادة الطلب',
+    minQuantityHint: 'يظهر تنبيه عندما تصل الكمية إلى هذا الحد',
+    status: 'الحالة',
+    productActive: 'المنتج نشط (يظهر في نقطة البيع)',
+    archived: 'مؤرشف',
+    sellingBelowCost: 'سعر البيع أقل من سعر الشراء',
+    empty: 'لا توجد منتجات مطابقة',
+    created: 'تمت إضافة المنتج',
+    saved: 'تم حفظ المنتج',
+    deleted: 'تم حذف المنتج',
+    archivedNotice: 'لهذا المنتج فواتير سابقة، لذلك تمت أرشفته بدل حذفه',
+    deleteTitle: 'حذف المنتج',
+    deleteBody: (name: string) =>
+      `هل تريد حذف "${name}"؟ إذا كانت له فواتير سابقة فسيؤرشف بدل الحذف.`,
+    delete: 'حذف',
+    adjustStock: 'حركة مخزون',
+    movements: 'سجل الحركات',
+    pageInfo: (from: number, to: number, total: number) => `${from}–${to} من ${total}`,
+    previous: 'السابق',
+    next: 'التالي'
+  },
+
+  stock: {
+    titleFor: (name: string) => `حركة مخزون: ${name}`,
+    current: 'الكمية الحالية',
+    type: 'نوع الحركة',
+    typeIn: 'إدخال',
+    typeOut: 'إخراج',
+    typeAdjustment: 'تسوية (جرد)',
+    amountIn: 'الكمية المضافة',
+    amountOut: 'الكمية المسحوبة',
+    counted: 'الكمية الفعلية بعد الجرد',
+    after: 'الكمية بعد الحركة',
+    reason: 'السبب',
+    reasonPlaceholder: 'مثال: بضاعة تالفة، جرد شهري…',
+    save: 'تسجيل الحركة',
+    saved: 'تم تسجيل حركة المخزون',
+    historyFor: (name: string) => `سجل حركات: ${name}`,
+    date: 'التاريخ',
+    by: 'بواسطة',
+    noMovements: 'لا توجد حركات مسجلة',
+    referenceSale: 'بيع',
+    referencePurchase: 'شراء',
+    referenceManual: 'يدوي'
+  },
+
+  categories: {
+    add: 'إضافة فئة',
+    edit: 'تعديل الفئة',
+    name: 'اسم الفئة',
+    parent: 'الفئة الرئيسية',
+    noParent: 'بدون (فئة رئيسية)',
+    productCount: 'عدد المنتجات',
+    empty: 'لا توجد فئات بعد',
+    saved: 'تم حفظ الفئة',
+    deleted: 'تم حذف الفئة',
+    deleteTitle: 'حذف الفئة',
+    deleteBody: (name: string) => `هل تريد حذف الفئة "${name}"؟`
+  },
+
+  units: {
+    piece: 'قطعة',
+    box: 'صندوق',
+    pack: 'علبة',
+    kg: 'كغ',
+    g: 'غ',
+    liter: 'لتر',
+    meter: 'متر'
+  } satisfies Record<ProductUnit, string>,
+
   roles: {
     owner: 'مالك',
     manager: 'مدير',
@@ -123,6 +218,10 @@ export const t = {
     NOT_FOUND: 'العنصر المطلوب غير موجود.',
     LAST_OWNER: 'يجب أن يبقى في النظام مالك واحد نشط على الأقل.',
     SELF_LOCKOUT: 'لا يمكنك إيقاف حسابك أو تغيير دورك بنفسك.',
+    BARCODE_TAKEN: 'هذا الباركود مستخدم لمنتج آخر.',
+    CATEGORY_IN_USE: 'لا يمكن حذف فئة تحتوي على منتجات أو فئات فرعية.',
+    CATEGORY_NESTING: 'الفئات تدعم مستويين فقط: فئة رئيسية وفئة فرعية.',
+    INSUFFICIENT_STOCK: 'الكمية المطلوبة أكبر من الكمية المتوفرة في المخزون.',
     INTERNAL: 'حدث خطأ غير متوقع. حاول مرة أخرى.'
   } satisfies Record<ErrorCode, string>
 }

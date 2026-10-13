@@ -23,6 +23,37 @@ export function asId(value: unknown, field = 'id'): number {
   return value
 }
 
+export function asOptionalId(value: unknown, field: string): number | null {
+  return value === null || value === undefined ? null : asId(value, field)
+}
+
+// Empty or missing text becomes null.
+export function asOptionalText(value: unknown, field: string, maxLength = 100): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') throw new AppError('VALIDATION', field)
+  const text = value.trim()
+  if (text.length > maxLength) throw new AppError('VALIDATION', field)
+  return text.length === 0 ? null : text
+}
+
+// A finite, non-negative number rounded to `decimals` places.
+export function asAmount(value: unknown, field: string, decimals = 2, max = 1e9): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > max) {
+    throw new AppError('VALIDATION', field)
+  }
+  return roundTo(value, decimals)
+}
+
+export function asOneOf<T extends string>(value: unknown, options: readonly T[], field: string): T {
+  if (!options.includes(value as T)) throw new AppError('VALIDATION', field)
+  return value as T
+}
+
+export function roundTo(value: number, decimals: number): number {
+  const factor = 10 ** decimals
+  return Math.round((value + Number.EPSILON) * factor) / factor
+}
+
 export function asBoolean(value: unknown, field: string): boolean {
   if (typeof value !== 'boolean') throw new AppError('VALIDATION', field)
   return value

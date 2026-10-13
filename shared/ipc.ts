@@ -1,5 +1,17 @@
 // Contract between the renderer and the main process.
 // Every IPC channel is declared here once, with its request and response types.
+import type {
+  AdjustStockRequest,
+  AppSettings,
+  CategoryDto,
+  DeleteProductResponse,
+  ListProductsRequest,
+  ListProductsResponse,
+  ProductDto,
+  SaveCategoryRequest,
+  SaveProductRequest,
+  StockMovementDto
+} from './catalog'
 import type { UserRole } from './permissions'
 
 export interface TableInfo {
@@ -63,6 +75,15 @@ export interface IpcChannels {
   'users:create': { request: CreateUserRequest; response: UserDto }
   'users:update': { request: UpdateUserRequest; response: UserDto }
   'users:resetPassword': { request: ResetPasswordRequest; response: null }
+  'settings:get': { request: void; response: AppSettings }
+  'categories:list': { request: void; response: CategoryDto[] }
+  'categories:save': { request: SaveCategoryRequest; response: CategoryDto }
+  'categories:delete': { request: { id: number }; response: null }
+  'products:list': { request: ListProductsRequest; response: ListProductsResponse }
+  'products:save': { request: SaveProductRequest; response: ProductDto }
+  'products:delete': { request: { id: number }; response: DeleteProductResponse }
+  'products:adjustStock': { request: AdjustStockRequest; response: ProductDto }
+  'products:movements': { request: { productId: number }; response: StockMovementDto[] }
 }
 
 export type IpcChannel = keyof IpcChannels
@@ -77,7 +98,16 @@ export const IPC_CHANNELS: readonly IpcChannel[] = [
   'users:list',
   'users:create',
   'users:update',
-  'users:resetPassword'
+  'users:resetPassword',
+  'settings:get',
+  'categories:list',
+  'categories:save',
+  'categories:delete',
+  'products:list',
+  'products:save',
+  'products:delete',
+  'products:adjustStock',
+  'products:movements'
 ]
 
 // Stable, language-neutral error codes; the renderer translates them for display.
@@ -92,6 +122,10 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'LAST_OWNER'
   | 'SELF_LOCKOUT'
+  | 'BARCODE_TAKEN'
+  | 'CATEGORY_IN_USE'
+  | 'CATEGORY_NESTING'
+  | 'INSUFFICIENT_STOCK'
   | 'INTERNAL'
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ErrorCode }

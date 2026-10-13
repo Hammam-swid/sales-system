@@ -28,6 +28,7 @@ export class InventoryTransaction {
   @Column({ type: 'text' })
   type!: InventoryTransactionType
 
+  // Positive amount for 'in' and 'out'; signed difference (new − old) for 'adjustment'.
   @Column({ type: 'real' })
   quantity!: number
 

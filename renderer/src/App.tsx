@@ -7,6 +7,7 @@ import { BUILT_PATHS, NAV_ITEMS } from './navigation'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { ProductsPage } from './pages/products/ProductsPage'
 import { UsersPage } from './pages/UsersPage'
 import { useAuthStore } from './store/auth'
 
@@ -35,6 +36,14 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
+          <Route
+            path="products"
+            element={
+              <RequirePermission permission="products.view">
+                <ProductsPage />
+              </RequirePermission>
+            }
+          />
           <Route
             path="users"
             element={
