@@ -25,14 +25,7 @@ export interface BenchmarkResult {
 }
 
 // Notes on known slow spots, shown under the table when that operation is over budget.
-const DIAGNOSES: Record<string, string> = {
-  'Products report: one year':
-    'The per-product sales subquery (PRODUCT_SALES in main/services/reports.service.ts) walks every invoice ' +
-    "line and converts each sale's time with date(created_at, 'localtime') before filtering, so the " +
-    'index on sales.created_at cannot be used; the report runs that subquery twice (best sellers and ' +
-    'slow movers). Filtering sales by a UTC created_at range first, and computing the subquery once, ' +
-    'should bring it well under budget.'
-}
+const DIAGNOSES: Record<string, string> = {}
 
 const ms = (value: number) => (value >= 100 ? value.toFixed(0) : value.toFixed(1))
 const count = (value: number) => value.toLocaleString('en')

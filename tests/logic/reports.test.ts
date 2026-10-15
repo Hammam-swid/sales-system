@@ -9,7 +9,15 @@ import {
   salesReport
 } from '../../main/services/reports.service'
 import { checkout, returnSale } from '../../main/services/sales.service'
-import { freshShop, line, makeCustomer, makeProduct, makeSupplier, setSetting } from './helpers'
+import {
+  freshShop,
+  line,
+  makeCustomer,
+  makeProduct,
+  makeSupplier,
+  query,
+  setSetting
+} from './helpers'
 
 // A small, fully known day of trading, so every report figure can be checked exactly.
 async function tradingDay() {
@@ -89,6 +97,38 @@ describe('reports', () => {
       retailValue: 290,
       lowStockCount: 1
     })
+  })
+
+  it('count a sale on its local calendar day, right up to midnight', async () => {
+    const { owner } = await freshShop()
+    const p = await makeProduct(owner, { salePrice: 10 })
+    const late = await checkout(
+      { items: [line(p.id, 1)], discount: 0, customerId: null, paidAmount: 10 },
+      owner
+    )
+    const early = await checkout(
+      { items: [line(p.id, 1)], discount: 0, customerId: null, paidAmount: 10 },
+      owner
+    )
+    // Stored in UTC, as the app stores them: 23:59 and 00:01 local time on either side of midnight.
+    const utc = (date: Date) => date.toISOString().slice(0, 19).replace('T', ' ')
+    const day = new Date(2026, 2, 28)
+    await query('UPDATE sales SET created_at = ? WHERE id = ?', [
+      utc(new Date(2026, 2, 28, 23, 59)),
+      late.id
+    ])
+    await query('UPDATE sales SET created_at = ? WHERE id = ?', [
+      utc(new Date(2026, 2, 29, 0, 1)),
+      early.id
+    ])
+    const on = (from: Date, to = from) => ({ from: localDate(0, from), to: localDate(0, to) })
+    const next = new Date(2026, 2, 29)
+
+    expect((await salesReport({ ...on(day), groupBy: 'day' })).invoices).toBe(1)
+    expect((await salesReport({ ...on(next), groupBy: 'day' })).invoices).toBe(1)
+    expect((await salesReport({ ...on(day, next), groupBy: 'day' })).invoices).toBe(2)
+    expect((await productsReport(on(day))).bestSellers[0].quantity).toBe(1)
+    expect((await profitReport(on(next))).revenue).toBe(10)
   })
 
   it('list who owes and who is owed', async () => {
