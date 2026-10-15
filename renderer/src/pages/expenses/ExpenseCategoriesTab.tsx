@@ -1,21 +1,12 @@
-import { useState, type FormEvent } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ExpenseCategoryDto } from '../../../../shared/expenses'
-import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
-import { TextField } from '../../components/ui/Field'
 import { IconButton } from '../../components/ui/IconButton'
-import { Modal } from '../../components/ui/Modal'
+import { useExpenseCategoriesTab } from '../../hooks/expenses/useExpenseCategoriesTab'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
-
-type Dialog =
-  | { kind: 'create' }
-  | { kind: 'edit'; category: ExpenseCategoryDto }
-  | { kind: 'delete'; category: ExpenseCategoryDto }
-  | null
+import { ExpenseCategoryFormModal } from './ExpenseCategoryFormModal'
 
 interface ExpenseCategoriesTabProps {
   categories: ExpenseCategoryDto[]
@@ -24,26 +15,17 @@ interface ExpenseCategoriesTabProps {
 }
 
 export function ExpenseCategoriesTab({ categories, onNotice, onChanged }: ExpenseCategoriesTabProps) {
-  const [dialog, setDialog] = useState<Dialog>(null)
-
-  const finish = (message: string) => {
-    setDialog(null)
-    onNotice(message)
-    onChanged()
-  }
-
-  const removeCategory = async (category: ExpenseCategoryDto) => {
-    const result = await api('expenseCategories:delete', { id: category.id })
-    if (!result.ok) return errorText(result)
-    finish(t.expenses.categoryDeleted)
-  }
+  const { dialog, openDialog, closeDialog, finish, removeCategory } = useExpenseCategoriesTab({
+    onNotice,
+    onChanged
+  })
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button
           icon={<Plus aria-hidden className="size-4" />}
-          onClick={() => setDialog({ kind: 'create' })}
+          onClick={() => openDialog({ kind: 'create' })}
         >
           {t.expenses.addCategory}
         </Button>
@@ -75,13 +57,13 @@ export function ExpenseCategoriesTab({ categories, onNotice, onChanged }: Expens
                     <IconButton
                       icon={Pencil}
                       label={t.common.edit}
-                      onClick={() => setDialog({ kind: 'edit', category })}
+                      onClick={() => openDialog({ kind: 'edit', category })}
                     />
                     <IconButton
                       icon={Trash2}
                       label={t.products.delete}
                       tone="danger"
-                      onClick={() => setDialog({ kind: 'delete', category })}
+                      onClick={() => openDialog({ kind: 'delete', category })}
                     />
                   </div>
                 </td>
@@ -92,9 +74,9 @@ export function ExpenseCategoriesTab({ categories, onNotice, onChanged }: Expens
       </Card>
 
       {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
-        <CategoryFormModal
+        <ExpenseCategoryFormModal
           category={dialog.kind === 'edit' ? dialog.category : undefined}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
           onSaved={() => finish(t.expenses.categorySaved)}
         />
       )}
@@ -104,56 +86,9 @@ export function ExpenseCategoriesTab({ categories, onNotice, onChanged }: Expens
           body={t.expenses.deleteCategoryBody(dialog.category.name)}
           confirmLabel={t.products.delete}
           onConfirm={() => removeCategory(dialog.category)}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
         />
       )}
     </div>
-  )
-}
-
-interface CategoryFormModalProps {
-  // Omit to create.
-  category?: ExpenseCategoryDto
-  onClose: () => void
-  onSaved: () => void
-}
-
-function CategoryFormModal({ category, onClose, onSaved }: CategoryFormModalProps) {
-  const [name, setName] = useState(category?.name ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSaving(true)
-    setError(null)
-    const result = await api('expenseCategories:save', { id: category?.id, name })
-    setSaving(false)
-    if (result.ok) onSaved()
-    else setError(errorText(result))
-  }
-
-  return (
-    <Modal title={category ? t.expenses.editCategory : t.expenses.addCategory} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        {error && <Alert>{error}</Alert>}
-        <TextField
-          label={t.expenses.categoryName}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          maxLength={60}
-          autoFocus
-          required
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="submit" loading={saving}>
-            {category ? t.common.save : t.common.add}
-          </Button>
-        </div>
-      </form>
-    </Modal>
   )
 }
