@@ -11,7 +11,7 @@ import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { formatDateTime, formatMoney, formatQuantity } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
-import { unitLabel } from '../products/ProductsTab'
+import { unitLabel } from '../../lib/units'
 import { PAYMENT_TONE } from '../sales/SalesPage'
 import { PurchaseFormModal } from './PurchaseFormModal'
 

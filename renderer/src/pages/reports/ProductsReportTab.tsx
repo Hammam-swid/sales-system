@@ -8,8 +8,8 @@ import { api } from '../../lib/api'
 import type { DayRange } from '../../lib/dates'
 import { formatDate, formatMoney, formatQuantity } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
-import { unitLabel } from '../products/ProductsTab'
-import { useReport } from './useReport'
+import { unitLabel } from '../../lib/units'
+import { useReport } from '../../hooks/reports/useReport'
 
 interface ProductsReportTabProps {
   range: DayRange

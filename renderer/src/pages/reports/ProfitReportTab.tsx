@@ -9,7 +9,7 @@ import { cn } from '../../lib/cn'
 import type { DayRange } from '../../lib/dates'
 import { formatMoney } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
-import { useReport } from './useReport'
+import { useReport } from '../../hooks/reports/useReport'
 
 interface ProfitReportTabProps {
   range: DayRange

@@ -9,7 +9,7 @@ import type { DayRange } from '../../lib/dates'
 import { formatMoney } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
 import { periodLabel, SalesChart } from './SalesChart'
-import { useReport } from './useReport'
+import { useReport } from '../../hooks/reports/useReport'
 
 interface SalesReportTabProps {
   range: DayRange

@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
-import { NOTE_SEPARATOR } from '../../../../shared/catalog'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Modal } from '../../components/ui/Modal'
+import { useLineNoteModal } from '../../hooks/pos/useLineNoteModal'
 import { t } from '../../i18n'
 import { cn } from '../../lib/cn'
 import { formatQuantity } from '../../lib/format'
@@ -19,23 +18,8 @@ interface LineNoteModalProps {
 
 // Picks ready-made notes for a line, and how many of its units they apply to.
 export function LineNoteModal({ line, options, onApply, onClose }: LineNoteModalProps) {
-  const current = line.note === '' ? [] : line.note.split(NOTE_SEPARATOR)
-  // Notes already on the line stay selectable even if the category no longer lists them.
-  const choices = [...options, ...current.filter((option) => !options.includes(option))]
-  const [selected, setSelected] = useState<string[]>(current)
-  // A fresh note usually belongs to one unit; editing an existing one changes its whole line.
-  const [count, setCount] = useState(line.note === '' && line.quantity > 1 ? 1 : line.quantity)
-
-  const toggle = (option: string) =>
-    setSelected((value) =>
-      value.includes(option) ? value.filter((other) => other !== option) : [...value, option]
-    )
-
-  const apply = () => {
-    // Kept in the category's order, so the same choices always make the same note.
-    onApply(choices.filter((option) => selected.includes(option)).join(NOTE_SEPARATOR), count)
-    onClose()
-  }
+  const { choices, isSelected, toggle, count, decrease, increase, applyToAll, apply } =
+    useLineNoteModal({ line, options, onApply, onClose })
 
   return (
     <Modal title={t.pos.noteTitle(line.product.name)} onClose={onClose}>
@@ -45,11 +29,11 @@ export function LineNoteModal({ line, options, onApply, onClose }: LineNoteModal
             <button
               key={option}
               type="button"
-              aria-pressed={selected.includes(option)}
+              aria-pressed={isSelected(option)}
               onClick={() => toggle(option)}
               className={cn(
                 'type-label h-11 rounded-md border px-4 transition-colors duration-[120ms] ease-brand',
-                selected.includes(option)
+                isSelected(option)
                   ? 'border-primary bg-primary text-on-primary'
                   : 'border-border-strong bg-bg text-ink hover:bg-surface'
               )}
@@ -70,7 +54,7 @@ export function LineNoteModal({ line, options, onApply, onClose }: LineNoteModal
                 label={t.pos.decrease}
                 className="border border-border-strong"
                 disabled={count <= 1}
-                onClick={() => setCount((value) => Math.max(1, Math.ceil(value) - 1))}
+                onClick={decrease}
               />
               <span className="type-label-strong w-10 text-center tabular-nums">
                 {formatQuantity(count)}
@@ -80,9 +64,9 @@ export function LineNoteModal({ line, options, onApply, onClose }: LineNoteModal
                 label={t.pos.increase}
                 className="border border-border-strong"
                 disabled={count >= line.quantity}
-                onClick={() => setCount((value) => Math.min(line.quantity, Math.floor(value) + 1))}
+                onClick={increase}
               />
-              <Button variant="ghost" size="sm" onClick={() => setCount(line.quantity)}>
+              <Button variant="ghost" size="sm" onClick={applyToAll}>
                 {t.pos.noteAll}
               </Button>
             </div>

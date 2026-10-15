@@ -7,7 +7,7 @@ import { Modal } from '../../components/ui/Modal'
 import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { formatQuantity, parseNumber } from '../../lib/format'
-import { unitLabel } from './ProductsTab'
+import { unitLabel } from '../../lib/units'
 
 interface StockAdjustModalProps {
   product: ProductDto

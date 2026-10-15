@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
 import type { HeldSaleDto } from '../../../../shared/sales'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { useHeldSalesModal } from '../../hooks/pos/useHeldSalesModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { formatDateTime, formatMoney } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
 
 interface HeldSalesModalProps {
   cartHasItems: boolean
@@ -15,35 +13,7 @@ interface HeldSalesModalProps {
 }
 
 export function HeldSalesModal({ cartHasItems, onResumed, onClose }: HeldSalesModalProps) {
-  const currency = useCurrency()
-  const [held, setHeld] = useState<HeldSaleDto[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    const result = await api('sales:held')
-    if (result.ok) setHeld(result.data)
-    else setError(errorText(result))
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const resume = async (id: number) => {
-    const result = await api('sales:resumeHeld', { id })
-    if (!result.ok) {
-      setError(errorText(result))
-      return
-    }
-    onResumed(result.data)
-    onClose()
-  }
-
-  const discard = async (id: number) => {
-    const result = await api('sales:discardHeld', { id })
-    if (result.ok) void load()
-    else setError(errorText(result))
-  }
+  const { currency, held, error, resume, discard } = useHeldSalesModal({ onResumed, onClose })
 
   return (
     <Modal title={t.pos.heldSales} size="lg" onClose={onClose}>

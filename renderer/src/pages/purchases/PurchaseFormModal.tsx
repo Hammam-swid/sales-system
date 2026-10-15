@@ -12,7 +12,7 @@ import { t } from '../../i18n'
 import { api, errorText } from '../../lib/api'
 import { formatMoney, parseNumber } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
-import { unitLabel } from '../products/ProductsTab'
+import { unitLabel } from '../../lib/units'
 
 const SEARCH_DEBOUNCE_MS = 200
 const RESULT_LIMIT = 8

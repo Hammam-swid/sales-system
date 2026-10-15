@@ -7,7 +7,7 @@ import { t } from '../../i18n'
 import { api } from '../../lib/api'
 import { formatMoney } from '../../lib/format'
 import { useCurrency } from '../../store/settings'
-import { useReport } from './useReport'
+import { useReport } from '../../hooks/reports/useReport'
 
 function partySheet(name: string, parties: PartyDto[], total: number): ExportSheet {
   return {
