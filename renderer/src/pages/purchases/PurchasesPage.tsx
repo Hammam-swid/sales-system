@@ -1,61 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { Eye, Plus, Search } from 'lucide-react'
-import type { ListPurchasesResponse, PurchaseDto } from '../../../../shared/parties'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { IconButton } from '../../components/ui/IconButton'
-import { Modal } from '../../components/ui/Modal'
+import { usePurchasesPage } from '../../hooks/purchases/usePurchasesPage'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
-import { formatDateTime, formatMoney, formatQuantity } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
-import { unitLabel } from '../../lib/units'
+import { formatDateTime, formatMoney } from '../../lib/format'
 import { PAYMENT_TONE } from '../sales/SalesPage'
+import { PurchaseDetailModal } from './PurchaseDetailModal'
 import { PurchaseFormModal } from './PurchaseFormModal'
 
-const PAGE_SIZE = 25
-const SEARCH_DEBOUNCE_MS = 250
-
 export function PurchasesPage() {
-  const currency = useCurrency()
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [data, setData] = useState<ListPurchasesResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [openId, setOpenId] = useState<number | null>(null)
-  const requestId = useRef(0)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim())
-      setPage(1)
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [searchInput])
-
-  const load = useCallback(async () => {
-    const current = ++requestId.current
-    const result = await api('purchases:list', { search, page, pageSize: PAGE_SIZE })
-    if (current !== requestId.current) return
-    if (result.ok) {
-      setData(result.data)
-      setError(null)
-    } else {
-      setError(errorText(result))
-    }
-  }, [search, page])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const total = data?.total ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const {
+    currency,
+    searchInput,
+    setSearchInput,
+    data,
+    error,
+    notice,
+    total,
+    page,
+    pageCount,
+    paged,
+    rangeFrom,
+    rangeTo,
+    previousPage,
+    nextPage,
+    creating,
+    startCreating,
+    stopCreating,
+    saved,
+    openId,
+    openPurchase,
+    closePurchase
+  } = usePurchasesPage()
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -79,7 +58,7 @@ export function PurchasesPage() {
             className="type-body-sm h-11 w-full rounded-sm border border-border-strong bg-bg ps-10 pe-3 text-ink placeholder:text-ink-muted"
           />
         </div>
-        <Button icon={<Plus aria-hidden className="size-4" />} onClick={() => setCreating(true)}>
+        <Button icon={<Plus aria-hidden className="size-4" />} onClick={startCreating}>
           {t.purchases.add}
         </Button>
       </div>
@@ -140,7 +119,7 @@ export function PurchasesPage() {
                     <IconButton
                       icon={Eye}
                       label={t.purchases.view}
-                      onClick={() => setOpenId(purchase.id)}
+                      onClick={() => openPurchase(purchase.id)}
                     />
                   </div>
                 </td>
@@ -150,17 +129,17 @@ export function PurchasesPage() {
         </table>
       </Card>
 
-      {total > PAGE_SIZE && (
+      {paged && (
         <div className="flex items-center justify-between">
           <p className="type-body-sm text-ink-muted tabular-nums">
-            {t.products.pageInfo((page - 1) * PAGE_SIZE + 1, Math.min(page * PAGE_SIZE, total), total)}
+            {t.products.pageInfo(rangeFrom, rangeTo, total)}
           </p>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
               disabled={page <= 1}
-              onClick={() => setPage((value) => value - 1)}
+              onClick={previousPage}
             >
               {t.products.previous}
             </Button>
@@ -168,7 +147,7 @@ export function PurchasesPage() {
               variant="secondary"
               size="sm"
               disabled={page >= pageCount}
-              onClick={() => setPage((value) => value + 1)}
+              onClick={nextPage}
             >
               {t.products.next}
             </Button>
@@ -178,105 +157,11 @@ export function PurchasesPage() {
 
       {creating && (
         <PurchaseFormModal
-          onClose={() => setCreating(false)}
-          onSaved={() => {
-            setCreating(false)
-            setNotice(t.purchases.saved)
-            setPage(1)
-            void load()
-          }}
+          onClose={stopCreating}
+          onSaved={saved}
         />
       )}
-      {openId !== null && <PurchaseDetailModal id={openId} onClose={() => setOpenId(null)} />}
+      {openId !== null && <PurchaseDetailModal id={openId} onClose={closePurchase} />}
     </div>
-  )
-}
-
-function PurchaseDetailModal({ id, onClose }: { id: number; onClose: () => void }) {
-  const currency = useCurrency()
-  const money = (value: number) => formatMoney(value, currency)
-  const [purchase, setPurchase] = useState<PurchaseDto | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    void api('purchases:get', { id }).then((result) => {
-      if (result.ok) setPurchase(result.data)
-      else setError(errorText(result))
-    })
-  }, [id])
-
-  return (
-    <Modal
-      title={purchase ? t.purchases.detailTitle(purchase.number) : t.purchases.title}
-      size="lg"
-      onClose={onClose}
-    >
-      {error && <Alert>{error}</Alert>}
-      {!purchase && !error && (
-        <p className="type-body-sm py-6 text-center text-ink-muted">{t.common.loading}</p>
-      )}
-      {purchase && (
-        <div className="space-y-5">
-          <div className="type-body-sm flex flex-wrap items-center gap-x-6 gap-y-2">
-            <span className="text-ink-muted tabular-nums">{formatDateTime(purchase.createdAt)}</span>
-            <span>
-              <span className="text-ink-muted">{t.purchases.supplier}: </span>
-              {purchase.supplierName ?? '—'}
-            </span>
-            <span>
-              <span className="text-ink-muted">{t.purchases.recordedBy}: </span>
-              {purchase.userName ?? '—'}
-            </span>
-            <Badge tone={PAYMENT_TONE[purchase.paymentStatus]}>
-              {t.sales.paymentStatus[purchase.paymentStatus]}
-            </Badge>
-          </div>
-
-          <div className="max-h-[45vh] overflow-y-auto rounded-md border border-border">
-            <table className="type-body-sm w-full">
-              <thead className="type-label border-b border-border bg-surface text-ink-muted">
-                <tr>
-                  <th className="px-4 py-2 text-start">{t.sales.item}</th>
-                  <th className="px-4 py-2 text-end">{t.sales.quantity}</th>
-                  <th className="px-4 py-2 text-end">{t.purchases.unitCost}</th>
-                  <th className="px-4 py-2 text-end">{t.sales.lineTotal}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchase.items.map((item) => (
-                  <tr key={item.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2">{item.productName}</td>
-                    <td className="px-4 py-2 text-end tabular-nums">
-                      {formatQuantity(item.quantity)} {unitLabel(item.unit)}
-                    </td>
-                    <td className="px-4 py-2 text-end tabular-nums">{money(item.unitCost)}</td>
-                    <td className="px-4 py-2 text-end font-medium tabular-nums">
-                      {money(item.total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <dl className="type-body-sm ms-auto w-72 space-y-1">
-            <div className="flex justify-between">
-              <dt className="type-label-strong">{t.sales.total}</dt>
-              <dd className="type-label-strong tabular-nums">{money(purchase.total)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-muted">{t.sales.paid}</dt>
-              <dd className="tabular-nums">{money(purchase.paidAmount)}</dd>
-            </div>
-            {purchase.total > purchase.paidAmount && (
-              <div className="flex justify-between">
-                <dt className="text-ink-muted">{t.purchases.owed}</dt>
-                <dd className="tabular-nums">{money(purchase.total - purchase.paidAmount)}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      )}
-    </Modal>
   )
 }
