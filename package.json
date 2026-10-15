@@ -16,7 +16,8 @@
     "dist": "npm run build && electron-builder --win",
     "postinstall": "electron-builder install-app-deps",
     "test": "node scripts/run-in-electron.mjs node_modules/vitest/vitest.mjs run",
-    "test:watch": "node scripts/run-in-electron.mjs node_modules/vitest/vitest.mjs"
+    "test:watch": "node scripts/run-in-electron.mjs node_modules/vitest/vitest.mjs",
+    "test:e2e": "electron-vite build && playwright test tests/e2e"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
