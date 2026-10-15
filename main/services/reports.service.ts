@@ -30,6 +30,31 @@ function parseRange(payload: unknown): { from: string; to: string } {
 // Timestamps are stored in UTC; reports work in the shop's local calendar days.
 const LOCAL_DAY = "date(s.created_at, 'localtime')"
 
+// Sales on the local days `from`..`to`, written so an index can do the work (takes rangeParams()).
+// Converting every row's time to local time cannot use an index, so:
+// - an outer UTC window, one day wider on each side, narrows rows through idx_sales_created_at;
+// - rows in an inner UTC window are inside the range in any time zone (offsets up to ±14 h);
+// - only rows near the two edges get the exact local-day test.
+const IN_RANGE = `s.created_at >= ? AND s.created_at < ?
+  AND ((s.created_at >= ? AND s.created_at < ?) OR ${LOCAL_DAY} BETWEEN ? AND ?)`
+
+function shiftDay(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return toDay(date)
+}
+
+function rangeParams(from: string, to: string): string[] {
+  return [
+    `${shiftDay(from, -1)} 00:00:00`,
+    `${shiftDay(to, 2)} 00:00:00`,
+    `${from} 14:00:00`,
+    `${to} 10:00:00`,
+    from,
+    to
+  ]
+}
+
 // One row per invoice in the range, with what was returned and what was kept.
 // A return has no date of its own in the schema, so it counts against the day of its invoice.
 const INVOICES = `
@@ -42,7 +67,7 @@ const INVOICES = `
     COALESCE((SELECT SUM(si.cost_price * (si.quantity - si.returned_quantity))
               FROM sale_items si WHERE si.sale_id = s.id), 0) AS cost
   FROM sales s
-  WHERE s.status != 'held' AND ${LOCAL_DAY} BETWEEN ? AND ?`
+  WHERE s.status != 'held' AND ${IN_RANGE}`
 
 // Returned value includes the line's share of invoice discount and tax (same rule as returns).
 const RETURNED = 'CASE WHEN i.subtotal > 0 THEN i.returned_lines * i.total / i.subtotal ELSE 0 END'
@@ -105,7 +130,7 @@ export async function salesReport(payload: unknown): Promise<SalesReport> {
             SUM(i.total - i.paid_amount) AS credit
      FROM (${INVOICES}) i
      GROUP BY period`,
-    [from, to]
+    rangeParams(from, to)
   )
   const byPeriod = new Map(rows.map((row) => [String(row.period), row]))
 
@@ -146,7 +171,7 @@ export async function profitReport(payload: unknown): Promise<ProfitReport> {
   const [totals]: Record<string, unknown>[] = await dataSource.query(
     `SELECT SUM(${REVENUE}) AS revenue, SUM(i.cost) AS cost, SUM(${TAX_KEPT}) AS tax
      FROM (${INVOICES}) i`,
-    [from, to]
+    rangeParams(from, to)
   )
   const expenseRows: Record<string, unknown>[] = await dataSource.query(
     `SELECT COALESCE(c.name, '—') AS category, SUM(e.amount) AS amount
@@ -177,7 +202,8 @@ export async function profitReport(payload: unknown): Promise<ProfitReport> {
   }
 }
 
-// Per-product sales in the range, net of returns.
+// Per-product sales in the range, net of returns. CROSS JOIN keeps SQLite on sales first
+// (by date, through the index) and then their lines; the other way round reads every line.
 const PRODUCT_SALES = `
   SELECT si.product_id,
          SUM(si.quantity - si.returned_quantity) AS qty,
@@ -186,34 +212,58 @@ const PRODUCT_SALES = `
                        * (s.subtotal - s.discount) / s.subtotal
                   ELSE 0 END) AS revenue,
          SUM(si.cost_price * (si.quantity - si.returned_quantity)) AS cost
-  FROM sale_items si JOIN sales s ON s.id = si.sale_id
-  WHERE s.status != 'held' AND si.quantity > 0 AND ${LOCAL_DAY} BETWEEN ? AND ?
+  FROM sales s CROSS JOIN sale_items si ON si.sale_id = s.id
+  WHERE s.status != 'held' AND si.quantity > 0 AND ${IN_RANGE}
   GROUP BY si.product_id`
+
+interface ProductSalesRow {
+  product_id: number
+  qty: number
+  revenue: number
+  cost: number
+}
 
 export async function productsReport(payload: unknown): Promise<ProductsReport> {
   const { from, to } = parseRange(payload)
   const dataSource = getDataSource()
 
-  const best: Record<string, unknown>[] = await dataSource.query(
-    `SELECT p.id, p.name, p.unit, x.qty, x.revenue, x.cost
-     FROM (${PRODUCT_SALES}) x JOIN products p ON p.id = x.product_id
-     WHERE x.qty > 0
-     ORDER BY x.qty DESC, x.revenue DESC
-     LIMIT ${TOP_PRODUCTS}`,
-    [from, to]
+  // The per-product totals are the expensive part, so they are computed once and
+  // shared by the best sellers and the slow movers.
+  const sales: ProductSalesRow[] = await dataSource.query(PRODUCT_SALES, rangeParams(from, to))
+  const soldBy = new Map(sales.map((row) => [Number(row.product_id), row]))
+
+  const topSales = sales
+    .filter((row) => Number(row.qty) > 0)
+    .sort((a, b) => Number(b.qty) - Number(a.qty) || Number(b.revenue) - Number(a.revenue))
+  const best: Record<string, unknown>[] = []
+  for (const row of topSales) {
+    if (best.length === TOP_PRODUCTS) break
+    const [product]: Record<string, unknown>[] = await dataSource.query(
+      'SELECT id, name, unit FROM products WHERE id = ?',
+      [row.product_id]
+    )
+    if (product) best.push({ ...product, qty: row.qty, revenue: row.revenue, cost: row.cost })
+  }
+
+  const inStock: Record<string, unknown>[] = await dataSource.query(
+    `SELECT id, name, unit, quantity AS stock, quantity * purchase_price AS stock_value
+     FROM products WHERE is_active = 1 AND track_stock = 1 AND quantity > 0
+     ORDER BY id`
   )
-  const slow: Record<string, unknown>[] = await dataSource.query(
-    `SELECT p.id, p.name, p.unit, p.quantity AS stock,
-            p.quantity * p.purchase_price AS stock_value,
-            COALESCE(x.qty, 0) AS sold,
-            (SELECT MAX(s2.created_at) FROM sale_items si2 JOIN sales s2 ON s2.id = si2.sale_id
-             WHERE si2.product_id = p.id AND s2.status != 'held') AS last_sold
-     FROM products p LEFT JOIN (${PRODUCT_SALES}) x ON x.product_id = p.id
-     WHERE p.is_active = 1 AND p.track_stock = 1 AND p.quantity > 0
-     ORDER BY sold ASC, stock_value DESC
-     LIMIT ${TOP_PRODUCTS}`,
-    [from, to]
-  )
+  type SlowRow = Record<string, unknown> & { sold: number }
+  const slow: SlowRow[] = inStock
+    .map((product): SlowRow => ({ ...product, sold: Number(soldBy.get(Number(product.id))?.qty ?? 0) }))
+    .sort((a, b) => a.sold - b.sold || Number(b.stock_value) - Number(a.stock_value))
+    .slice(0, TOP_PRODUCTS)
+  // Only the products shown need their last sale date.
+  for (const product of slow) {
+    const [last]: Record<string, unknown>[] = await dataSource.query(
+      `SELECT MAX(s.created_at) AS last_sold FROM sale_items si JOIN sales s ON s.id = si.sale_id
+       WHERE si.product_id = ? AND s.status != 'held'`,
+      [product.id]
+    )
+    product.last_sold = last?.last_sold ?? null
+  }
   const [inventory]: Record<string, unknown>[] = await dataSource.query(
     `SELECT COUNT(*) AS product_count,
             SUM(quantity * purchase_price) AS cost_value,
