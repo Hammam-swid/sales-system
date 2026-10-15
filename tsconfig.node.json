@@ -16,5 +16,12 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false
   },
-  "include": ["main/**/*.ts", "shared/**/*.ts", "electron.vite.config.ts"]
+  "include": [
+    "main/**/*.ts",
+    "shared/**/*.ts",
+    "electron.vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "tests/**/*.ts"
+  ]
 }
