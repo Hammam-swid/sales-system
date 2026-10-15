@@ -43,6 +43,18 @@ export class Product {
   @Column({ type: 'real', name: 'min_quantity', default: 0 })
   minQuantity!: number
 
+  // YYYY-MM-DD, or null when the product does not expire.
+  @Column({ type: 'date', name: 'expiry_date', nullable: true })
+  expiryDate!: string | null
+
+  // 0 means no warranty.
+  @Column({ type: 'integer', name: 'warranty_months', default: 0 })
+  warrantyMonths!: number
+
+  // false for items sold without a stock quantity, such as drinks and meals.
+  @Column({ type: 'boolean', name: 'track_stock', default: true })
+  trackStock!: boolean
+
   @Column({ type: 'boolean', name: 'is_active', default: true })
   isActive!: boolean
 

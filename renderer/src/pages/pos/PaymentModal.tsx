@@ -1,20 +1,12 @@
-import { useState, type FormEvent } from 'react'
 import { CircleCheck, Printer } from 'lucide-react'
-import {
-  roundTo,
-  type CustomerDto,
-  type HoldSaleRequest,
-  type SaleDto
-} from '../../../../shared/sales'
+import type { CustomerDto, HoldSaleRequest } from '../../../../shared/sales'
+import { formatOrderNumber } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
+import { usePaymentModal } from '../../hooks/pos/usePaymentModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
-import { formatMoney, parseNumber } from '../../lib/format'
-import { usePrintStore } from '../../store/print'
-import { useCurrency } from '../../store/settings'
 
 interface PaymentModalProps {
   cart: HoldSaleRequest
@@ -26,34 +18,23 @@ interface PaymentModalProps {
 }
 
 export function PaymentModal({ cart, total, customer, onCompleted, onClose }: PaymentModalProps) {
-  const currency = useCurrency()
-  const print = usePrintStore((state) => state.print)
-  const money = (value: number) => formatMoney(value, currency)
-
-  const [paid, setPaid] = useState(String(total))
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState<{ sale: SaleDto; change: number } | null>(null)
-
-  const tendered = parseNumber(paid)
-  const change = tendered === null ? 0 : Math.max(0, roundTo(tendered - total, 2))
-  const remaining = tendered === null ? 0 : Math.max(0, roundTo(total - tendered, 2))
-  const needsCustomer = remaining > 0 && !customer
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (tendered === null || tendered < 0 || needsCustomer) return
-    setSaving(true)
-    setError(null)
-    const result = await api('sales:checkout', { ...cart, paidAmount: Math.min(tendered, total) })
-    setSaving(false)
-    if (result.ok) {
-      setDone({ sale: result.data, change })
-      onCompleted()
-    } else {
-      setError(errorText(result))
-    }
-  }
+  const {
+    currency,
+    money,
+    print,
+    paid,
+    setPaid,
+    payFull,
+    payNothing,
+    tendered,
+    change,
+    remaining,
+    needsCustomer,
+    error,
+    saving,
+    done,
+    submit
+  } = usePaymentModal({ cart, total, customer, onCompleted })
 
   if (done) {
     return (
@@ -61,6 +42,14 @@ export function PaymentModal({ cart, total, customer, onCompleted, onClose }: Pa
         <div className="space-y-6">
           <div className="flex flex-col items-center gap-2 text-center">
             <CircleCheck aria-hidden className="size-12 text-success" />
+            {done.sale.orderNumber !== null && (
+              <>
+                <p className="type-body-sm text-ink-muted">{t.pos.orderNumber}</p>
+                <p dir="ltr" className="type-h1 tabular-nums">
+                  {formatOrderNumber(done.sale.orderNumber)}
+                </p>
+              </>
+            )}
             <p className="type-body-sm text-ink-muted">{t.pos.invoiceNumber}</p>
             <p dir="ltr" className="type-h3 tabular-nums">
               {done.sale.invoiceNumber}
@@ -85,7 +74,7 @@ export function PaymentModal({ cart, total, customer, onCompleted, onClose }: Pa
               <div className="flex justify-between">
                 <dt className="text-ink-muted">{t.pos.remainingDebt}</dt>
                 <dd className="type-label-strong text-warning tabular-nums">
-                  {money(roundTo(done.sale.total - done.sale.paidAmount, 2))}
+                  {money(done.debt)}
                 </dd>
               </div>
             )}
@@ -131,10 +120,10 @@ export function PaymentModal({ cart, total, customer, onCompleted, onClose }: Pa
           required
         />
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => setPaid(String(total))}>
+          <Button variant="secondary" size="sm" onClick={payFull}>
             {t.pos.payFull}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setPaid('0')}>
+          <Button variant="secondary" size="sm" onClick={payNothing}>
             {t.pos.payNothing}
           </Button>
         </div>

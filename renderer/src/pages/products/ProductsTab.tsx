@@ -1,41 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUpDown, History, Pencil, Plus, Search, Trash2, TriangleAlert } from 'lucide-react'
-import type {
-  CategoryDto,
-  ListProductsResponse,
-  ProductDto,
-  ProductStatusFilter,
-  ProductUnit
-} from '../../../../shared/catalog'
+import {
+  ArrowUpDown,
+  CalendarClock,
+  History,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert
+} from 'lucide-react'
+import type { CategoryDto, ProductStatusFilter } from '../../../../shared/catalog'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { IconButton } from '../../components/ui/IconButton'
+import { useProductsTab } from '../../hooks/products/useProductsTab'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { categoryOptionLabel, orderCategories } from '../../lib/categories'
 import { cn } from '../../lib/cn'
 import { formatMoney, formatQuantity } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
+import { unitLabel } from '../../lib/units'
 import { MovementsModal } from './MovementsModal'
 import { ProductFormModal } from './ProductFormModal'
 import { StockAdjustModal } from './StockAdjustModal'
 
-const PAGE_SIZE = 25
-const SEARCH_DEBOUNCE_MS = 250
-
 const CONTROL =
   'type-body-sm h-11 rounded-sm border border-border-strong bg-bg px-3 text-ink placeholder:text-ink-muted'
-
-type Dialog =
-  | { kind: 'create' }
-  | { kind: 'edit'; product: ProductDto }
-  | { kind: 'stock'; product: ProductDto }
-  | { kind: 'movements'; product: ProductDto }
-  | { kind: 'delete'; product: ProductDto }
-  | null
 
 interface ProductsTabProps {
   categories: CategoryDto[]
@@ -45,10 +36,6 @@ interface ProductsTabProps {
   onCatalogChanged: () => void
 }
 
-export function unitLabel(unit: string): string {
-  return t.units[unit as ProductUnit] ?? unit
-}
-
 export function ProductsTab({
   categories,
   canManage,
@@ -56,69 +43,40 @@ export function ProductsTab({
   onNotice,
   onCatalogChanged
 }: ProductsTabProps) {
-  const currency = useCurrency()
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [categoryId, setCategoryId] = useState<number | null>(null)
-  const [status, setStatus] = useState<ProductStatusFilter>('active')
-  const [lowStockOnly, setLowStockOnly] = useState(false)
-  const [page, setPage] = useState(1)
-  const [data, setData] = useState<ListProductsResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [dialog, setDialog] = useState<Dialog>(null)
-  const requestId = useRef(0)
-
-  // Typing waits a moment before searching; a barcode scanner ends with Enter and searches at once.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim())
-      setPage(1)
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [searchInput])
-
-  const load = useCallback(async () => {
-    const current = ++requestId.current
-    const result = await api('products:list', {
-      search,
-      categoryId,
-      status,
-      lowStockOnly,
-      page,
-      pageSize: PAGE_SIZE
-    })
-    // Ignore responses that arrive after a newer request was sent.
-    if (current !== requestId.current) return
-    if (result.ok) {
-      setData(result.data)
-      setError(null)
-    } else {
-      setError(errorText(result))
-    }
-  }, [search, categoryId, status, lowStockOnly, page])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const finish = (message: string) => {
-    setDialog(null)
-    onNotice(message)
-    void load()
-    onCatalogChanged()
-  }
-
-  const removeProduct = async (product: ProductDto) => {
-    const result = await api('products:delete', { id: product.id })
-    if (!result.ok) return errorText(result)
-    finish(result.data.outcome === 'archived' ? t.products.archivedNotice : t.products.deleted)
-  }
-
-  const showActions = canManage || canAdjustStock
-  const columnCount = 6 + (canManage ? 1 : 0) + (showActions ? 1 : 0)
-  const total = data?.total ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const lowStockCount = data?.lowStockCount ?? 0
+  const {
+    currency,
+    searchInput,
+    setSearchInput,
+    searchNow,
+    categoryId,
+    changeCategory,
+    status,
+    changeStatus,
+    lowStockOnly,
+    toggleLowStock,
+    lowStockCount,
+    expiryDates,
+    expiringOnly,
+    toggleExpiring,
+    expiringCount,
+    expiryState,
+    data,
+    error,
+    showActions,
+    columnCount,
+    total,
+    page,
+    pageCount,
+    rangeFrom,
+    rangeTo,
+    previousPage,
+    nextPage,
+    dialog,
+    openDialog,
+    closeDialog,
+    finish,
+    removeProduct
+  } = useProductsTab({ canManage, canAdjustStock, onNotice, onCatalogChanged })
 
   return (
     <div className="space-y-4">
@@ -133,10 +91,7 @@ export function ProductsTab({
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                setSearch(searchInput.trim())
-                setPage(1)
-              }
+              if (event.key === 'Enter') searchNow()
             }}
             placeholder={t.products.searchPlaceholder}
             aria-label={t.products.searchPlaceholder}
@@ -147,10 +102,9 @@ export function ProductsTab({
 
         <select
           value={categoryId ?? ''}
-          onChange={(event) => {
-            setCategoryId(event.target.value === '' ? null : Number(event.target.value))
-            setPage(1)
-          }}
+          onChange={(event) =>
+            changeCategory(event.target.value === '' ? null : Number(event.target.value))
+          }
           aria-label={t.products.category}
           className={CONTROL}
         >
@@ -165,10 +119,7 @@ export function ProductsTab({
         {canManage && (
           <select
             value={status}
-            onChange={(event) => {
-              setStatus(event.target.value as ProductStatusFilter)
-              setPage(1)
-            }}
+            onChange={(event) => changeStatus(event.target.value as ProductStatusFilter)}
             aria-label={t.products.status}
             className={CONTROL}
           >
@@ -181,10 +132,7 @@ export function ProductsTab({
         <button
           type="button"
           aria-pressed={lowStockOnly}
-          onClick={() => {
-            setLowStockOnly((value) => !value)
-            setPage(1)
-          }}
+          onClick={toggleLowStock}
           className={cn(
             'type-label flex h-11 items-center gap-2 rounded-sm border px-3 transition-colors duration-[120ms] ease-brand',
             lowStockOnly
@@ -199,10 +147,30 @@ export function ProductsTab({
           {t.products.lowStockFilter(lowStockCount)}
         </button>
 
+        {expiryDates && (
+          <button
+            type="button"
+            aria-pressed={expiringOnly}
+            onClick={toggleExpiring}
+            className={cn(
+              'type-label flex h-11 items-center gap-2 rounded-sm border px-3 transition-colors duration-[120ms] ease-brand',
+              expiringOnly
+                ? 'border-warning bg-warning-tint text-warning'
+                : 'border-border-strong bg-bg text-ink hover:bg-surface'
+            )}
+          >
+            <CalendarClock
+              aria-hidden
+              className={cn('size-4', expiringCount > 0 && !expiringOnly && 'text-warning')}
+            />
+            {t.products.expiryFilter(expiringCount)}
+          </button>
+        )}
+
         {canManage && (
           <Button
             icon={<Plus aria-hidden className="size-4" />}
-            onClick={() => setDialog({ kind: 'create' })}
+            onClick={() => openDialog({ kind: 'create' })}
           >
             {t.products.add}
           </Button>
@@ -221,6 +189,7 @@ export function ProductsTab({
               <th className="px-4 py-3 text-end">{t.products.salePrice}</th>
               <th className="px-4 py-3 text-end">{t.products.quantity}</th>
               <th className="px-4 py-3 text-start">{t.products.unit}</th>
+              {expiryDates && <th className="px-4 py-3 text-start">{t.products.expiryDate}</th>}
               <th className="px-4 py-3 text-start">{t.products.status}</th>
               {showActions && <th className="px-4 py-3 text-end">{t.common.actions}</th>}
             </tr>
@@ -262,12 +231,33 @@ export function ProductsTab({
                   {formatMoney(product.salePrice, currency)}
                 </td>
                 <td className="px-4 py-3 text-end tabular-nums">
-                  {formatQuantity(product.quantity)}
+                  {product.trackStock ? formatQuantity(product.quantity) : '—'}
                 </td>
                 <td className="px-4 py-3 text-ink-muted">{unitLabel(product.unit)}</td>
+                {expiryDates && (
+                  <td className="px-4 py-3">
+                    {product.expiryDate === null ? (
+                      <span className="text-ink-muted">—</span>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span dir="ltr" className="tabular-nums">
+                          {product.expiryDate}
+                        </span>
+                        {expiryState(product) === 'expired' && (
+                          <Badge tone="danger">{t.products.expired}</Badge>
+                        )}
+                        {expiryState(product) === 'soon' && (
+                          <Badge tone="warning">{t.products.expiringSoon}</Badge>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   {!product.isActive ? (
                     <Badge>{t.products.archived}</Badge>
+                  ) : !product.trackStock ? (
+                    <Badge>{t.products.untracked}</Badge>
                   ) : product.isLowStock ? (
                     <Badge tone="warning">{t.products.lowStock}</Badge>
                   ) : (
@@ -277,17 +267,17 @@ export function ProductsTab({
                 {showActions && (
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
-                      {canAdjustStock && (
+                      {canAdjustStock && product.trackStock && (
                         <>
                           <IconButton
                             icon={ArrowUpDown}
                             label={t.products.adjustStock}
-                            onClick={() => setDialog({ kind: 'stock', product })}
+                            onClick={() => openDialog({ kind: 'stock', product })}
                           />
                           <IconButton
                             icon={History}
                             label={t.products.movements}
-                            onClick={() => setDialog({ kind: 'movements', product })}
+                            onClick={() => openDialog({ kind: 'movements', product })}
                           />
                         </>
                       )}
@@ -296,13 +286,13 @@ export function ProductsTab({
                           <IconButton
                             icon={Pencil}
                             label={t.common.edit}
-                            onClick={() => setDialog({ kind: 'edit', product })}
+                            onClick={() => openDialog({ kind: 'edit', product })}
                           />
                           <IconButton
                             icon={Trash2}
                             label={t.products.delete}
                             tone="danger"
-                            onClick={() => setDialog({ kind: 'delete', product })}
+                            onClick={() => openDialog({ kind: 'delete', product })}
                           />
                         </>
                       )}
@@ -318,18 +308,14 @@ export function ProductsTab({
       {total > 0 && (
         <div className="flex items-center justify-between">
           <p className="type-body-sm text-ink-muted tabular-nums">
-            {t.products.pageInfo(
-              (page - 1) * PAGE_SIZE + 1,
-              Math.min(page * PAGE_SIZE, total),
-              total
-            )}
+            {t.products.pageInfo(rangeFrom, rangeTo, total)}
           </p>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
               disabled={page <= 1}
-              onClick={() => setPage((value) => value - 1)}
+              onClick={previousPage}
             >
               {t.products.previous}
             </Button>
@@ -337,7 +323,7 @@ export function ProductsTab({
               variant="secondary"
               size="sm"
               disabled={page >= pageCount}
-              onClick={() => setPage((value) => value + 1)}
+              onClick={nextPage}
             >
               {t.products.next}
             </Button>
@@ -349,19 +335,19 @@ export function ProductsTab({
         <ProductFormModal
           product={dialog.kind === 'edit' ? dialog.product : undefined}
           categories={categories}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
           onSaved={() => finish(dialog.kind === 'edit' ? t.products.saved : t.products.created)}
         />
       )}
       {dialog?.kind === 'stock' && (
         <StockAdjustModal
           product={dialog.product}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
           onSaved={() => finish(t.stock.saved)}
         />
       )}
       {dialog?.kind === 'movements' && (
-        <MovementsModal product={dialog.product} onClose={() => setDialog(null)} />
+        <MovementsModal product={dialog.product} onClose={() => closeDialog()} />
       )}
       {dialog?.kind === 'delete' && (
         <ConfirmDialog
@@ -369,7 +355,7 @@ export function ProductsTab({
           body={t.products.deleteBody(dialog.product.name)}
           confirmLabel={t.products.delete}
           onConfirm={() => removeProduct(dialog.product)}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
         />
       )}
     </div>

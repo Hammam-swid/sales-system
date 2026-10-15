@@ -1,49 +1,37 @@
-import { useState, type FormEvent } from 'react'
 import { PASSWORD_MIN_LENGTH } from '../../../shared/ipc'
 import type { Language } from '../../../shared/settings'
+import { STORE_TYPES, type StoreType } from '../../../shared/store'
 import { Logo } from '../components/Logo'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { SelectField, TextField } from '../components/ui/Field'
 import { PasswordField } from '../components/ui/PasswordField'
-import { language, switchLanguage, t } from '../i18n'
-import { api, errorText } from '../lib/api'
+import { useSetupPage } from '../hooks/useSetupPage'
+import { t } from '../i18n'
 import { hasArabicLetters } from '../lib/text'
-import { useAuthStore } from '../store/auth'
 
 // Shown once, on an installation that has no accounts yet.
 export function SetupPage() {
-  const setUser = useAuthStore((state) => state.setUser)
-  const [storeName, setStoreName] = useState('')
-  const [fullName, setFullName] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-
-  const mismatch = confirmPassword.length > 0 && confirmPassword !== password
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (password !== confirmPassword) return
-    setSubmitting(true)
-    setError(null)
-    const result = await api('setup:createOwner', {
-      storeName,
-      fullName,
-      username,
-      password,
-      language
-    })
-    setSubmitting(false)
-    if (result.ok) {
-      window.location.hash = '#/'
-      setUser(result.data)
-    } else {
-      setError(errorText(result))
-    }
-  }
+  const {
+    language,
+    changeLanguage,
+    storeName,
+    setStoreName,
+    storeType,
+    setStoreType,
+    fullName,
+    setFullName,
+    username,
+    setUsername,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    mismatch,
+    error,
+    submitting,
+    submit
+  } = useSetupPage()
 
   return (
     <div className="flex h-full bg-bg text-ink">
@@ -61,7 +49,7 @@ export function SetupPage() {
             <SelectField
               label={t.setup.language}
               value={language}
-              onChange={(event) => switchLanguage(event.target.value as Language)}
+              onChange={(event) => changeLanguage(event.target.value as Language)}
             >
               <option value="ar">{t.settings.languageAr}</option>
               <option value="en">{t.settings.languageEn}</option>
@@ -75,6 +63,22 @@ export function SetupPage() {
               autoFocus
               required
             />
+            <SelectField
+              label={t.setup.storeType}
+              hint={t.setup.storeTypeHint}
+              value={storeType}
+              onChange={(event) => setStoreType(event.target.value as StoreType)}
+              required
+            >
+              <option value="" disabled>
+                {t.setup.chooseStoreType}
+              </option>
+              {STORE_TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {t.storeTypes[option]}
+                </option>
+              ))}
+            </SelectField>
             <TextField
               label={t.setup.fullName}
               name="fullName"

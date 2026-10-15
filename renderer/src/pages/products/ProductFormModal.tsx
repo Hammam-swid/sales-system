@@ -1,19 +1,17 @@
-import { useState, type FormEvent } from 'react'
 import {
   PRODUCT_UNITS,
   type CategoryDto,
   type ProductDto,
   type ProductUnit
 } from '../../../../shared/catalog'
+import { MAX_WARRANTY_MONTHS } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { CheckboxField, SelectField, TextField } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
+import { useProductFormModal } from '../../hooks/products/useProductFormModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { categoryOptionLabel, orderCategories } from '../../lib/categories'
-import { parseNumber } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
 
 interface ProductFormModalProps {
   // Omit to create a new product.
@@ -23,57 +21,41 @@ interface ProductFormModalProps {
   onSaved: () => void
 }
 
-function isKnownUnit(unit: string): unit is ProductUnit {
-  return (PRODUCT_UNITS as readonly string[]).includes(unit)
-}
-
 export function ProductFormModal({ product, categories, onClose, onSaved }: ProductFormModalProps) {
-  const currency = useCurrency()
-  const [name, setName] = useState(product?.name ?? '')
-  const [barcode, setBarcode] = useState(product?.barcode ?? '')
-  const [categoryId, setCategoryId] = useState<number | null>(product?.categoryId ?? null)
-  const [unit, setUnit] = useState<ProductUnit>(
-    product && isKnownUnit(product.unit) ? product.unit : 'piece'
-  )
-  const [purchasePrice, setPurchasePrice] = useState(String(product?.purchasePrice ?? ''))
-  const [salePrice, setSalePrice] = useState(String(product?.salePrice ?? ''))
-  const [quantity, setQuantity] = useState('0')
-  const [minQuantity, setMinQuantity] = useState(String(product?.minQuantity ?? '0'))
-  const [isActive, setIsActive] = useState(product?.isActive ?? true)
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const purchase = parseNumber(purchasePrice)
-  const sale = parseNumber(salePrice)
-  const belowCost = purchase !== null && sale !== null && sale < purchase
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    const min = parseNumber(minQuantity)
-    const opening = parseNumber(quantity)
-    if (purchase === null || sale === null || min === null || (!product && opening === null)) {
-      setError(t.errors.VALIDATION)
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    const result = await api('products:save', {
-      id: product?.id,
-      name,
-      barcode: barcode.trim() === '' ? null : barcode.trim(),
-      categoryId,
-      unit,
-      purchasePrice: purchase,
-      salePrice: sale,
-      minQuantity: min,
-      isActive,
-      quantity: product ? undefined : (opening ?? 0)
-    })
-    setSaving(false)
-    if (result.ok) onSaved()
-    else setError(errorText(result))
-  }
+  const {
+    currency,
+    expiryDates,
+    warranty,
+    untrackedItems,
+    name,
+    setName,
+    barcode,
+    setBarcode,
+    categoryId,
+    setCategoryId,
+    unit,
+    setUnit,
+    purchasePrice,
+    setPurchasePrice,
+    salePrice,
+    setSalePrice,
+    belowCost,
+    quantity,
+    setQuantity,
+    minQuantity,
+    setMinQuantity,
+    expiryDate,
+    setExpiryDate,
+    warrantyMonths,
+    setWarrantyMonths,
+    trackStock,
+    setTrackStock,
+    isActive,
+    setIsActive,
+    error,
+    saving,
+    submit
+  } = useProductFormModal({ product, onSaved })
 
   const numberProps = { type: 'number', min: 0, step: 'any', dir: 'ltr', className: 'text-start' } as const
 
@@ -152,7 +134,7 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
               </option>
             ))}
           </SelectField>
-          {!product && (
+          {!product && trackStock && (
             <TextField
               label={t.products.openingQuantity}
               value={quantity}
@@ -161,15 +143,56 @@ export function ProductFormModal({ product, categories, onClose, onSaved }: Prod
               {...numberProps}
             />
           )}
-          <TextField
-            label={t.products.minQuantity}
-            value={minQuantity}
-            onChange={(event) => setMinQuantity(event.target.value)}
-            required
-            {...numberProps}
-          />
+          {trackStock && (
+            <TextField
+              label={t.products.minQuantity}
+              value={minQuantity}
+              onChange={(event) => setMinQuantity(event.target.value)}
+              required
+              {...numberProps}
+            />
+          )}
         </div>
-        <p className="type-caption text-ink-muted">{t.products.minQuantityHint}</p>
+        {trackStock && <p className="type-caption text-ink-muted">{t.products.minQuantityHint}</p>}
+
+        {(untrackedItems || !trackStock) && (
+          <div>
+            <CheckboxField
+              label={t.products.trackStock}
+              checked={trackStock}
+              onChange={(event) => setTrackStock(event.target.checked)}
+            />
+            <p className="type-caption text-ink-muted">{t.products.trackStockHint}</p>
+          </div>
+        )}
+
+        {(expiryDates || warranty) && (
+          <div className="grid grid-cols-2 gap-4">
+            {expiryDates && (
+              <TextField
+                label={t.products.expiryDate}
+                hint={t.products.expiryDateHint}
+                type="date"
+                value={expiryDate}
+                onChange={(event) => setExpiryDate(event.target.value)}
+                dir="ltr"
+                className="text-start"
+              />
+            )}
+            {warranty && (
+              <TextField
+                label={t.products.warrantyMonths}
+                hint={t.products.warrantyHint}
+                value={warrantyMonths}
+                onChange={(event) => setWarrantyMonths(event.target.value)}
+                max={MAX_WARRANTY_MONTHS}
+                required
+                {...numberProps}
+                step={1}
+              />
+            )}
+          </div>
+        )}
 
         {product && (
           <CheckboxField

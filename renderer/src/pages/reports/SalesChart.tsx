@@ -11,19 +11,15 @@ import {
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
 import type { SalesGrouping, SalesPeriod } from '../../../../shared/reports'
 import { isRtl, t } from '../../i18n'
-import { formatDay, formatMonth, formatShortDay } from '../../lib/dates'
+import { formatMonth, formatShortDay } from '../../lib/dates'
 import { formatMoney } from '../../lib/format'
+import { periodLabel } from '../../lib/periods'
 import { useCurrency } from '../../store/settings'
 
 // One series, so one color: the brand blue, which passes contrast on both the light
 // and dark chart surfaces. Text and axes stay in ink tokens.
 const BAR_COLOR = 'var(--color-blue-500)'
 
-export function periodLabel(period: string, groupBy: SalesGrouping): string {
-  if (groupBy === 'month') return formatMonth(period)
-  if (groupBy === 'week') return t.reports.weekOf(formatDay(period))
-  return formatDay(period)
-}
 
 function axisLabel(period: string, groupBy: SalesGrouping): string {
   return groupBy === 'month' ? formatMonth(period) : formatShortDay(period)

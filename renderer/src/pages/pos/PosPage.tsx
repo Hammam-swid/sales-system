@@ -1,144 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Minus, PauseCircle, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react'
 import {
-  computeTotals,
-  lineTotal,
-  roundTo,
-  type CustomerDto,
-  type PosProduct
-} from '../../../../shared/sales'
+  Minus,
+  NotebookPen,
+  PauseCircle,
+  Plus,
+  Search,
+  ShoppingCart,
+  Trash2,
+  X
+} from 'lucide-react'
+import { ORDER_TYPES } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
+import { usePosPage } from '../../hooks/pos/usePosPage'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { cn } from '../../lib/cn'
-import { formatMoney, formatQuantity, parseNumber } from '../../lib/format'
-import { quantityStep, useCartStore, type DiscountMode } from '../../store/cart'
-import { useSettingsStore } from '../../store/settings'
-import { unitLabel } from '../products/ProductsTab'
+import { formatQuantity, parseNumber } from '../../lib/format'
+import { unitLabel } from '../../lib/units'
+import type { DiscountMode } from '../../store/cart'
 import { HeldSalesModal } from './HeldSalesModal'
+import { LineNoteModal } from './LineNoteModal'
 import { PaymentModal } from './PaymentModal'
-
-const RESULT_LIMIT = 30
-const SEARCH_DEBOUNCE_MS = 200
 
 const SMALL_INPUT =
   'type-body-sm h-9 rounded-sm border border-border-strong bg-bg px-2 text-center text-ink tabular-nums'
 
 export function PosPage() {
-  const { currency, taxRate } = useSettingsStore((state) => state.settings)
-  const cart = useCartStore()
-  const money = (value: number) => formatMoney(value, currency)
-
-  const [query, setQuery] = useState('')
-  const [products, setProducts] = useState<PosProduct[] | null>(null)
-  const [customers, setCustomers] = useState<CustomerDto[]>([])
-  const [heldCount, setHeldCount] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [dialog, setDialog] = useState<'payment' | 'held' | null>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const requestId = useRef(0)
-
-  const fetchProducts = useCallback(async (search: string): Promise<PosProduct[] | null> => {
-    const current = ++requestId.current
-    const result = await api('products:list', {
-      search,
-      status: 'active',
-      pageSize: RESULT_LIMIT
-    })
-    if (current !== requestId.current) return null
-    if (!result.ok) {
-      setError(errorText(result))
-      return null
-    }
-    setProducts(result.data.items)
-    return result.data.items
-  }, [])
-
-  const refreshSideData = useCallback(async () => {
-    const [customersResult, heldResult] = await Promise.all([
-      api('customers:list', {}),
-      api('sales:held')
-    ])
-    if (customersResult.ok) setCustomers(customersResult.data)
-    if (heldResult.ok) setHeldCount(heldResult.data.length)
-  }, [])
-
-  useEffect(() => {
-    void refreshSideData()
-  }, [refreshSideData])
-
-  useEffect(() => {
-    const timer = setTimeout(() => void fetchProducts(query.trim()), SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [query, fetchProducts])
-
-  const focusSearch = () => searchRef.current?.focus()
-
-  const addProduct = (product: PosProduct) => {
-    setNotice(null)
-    if (cart.add(product)) setError(null)
-    else setError(`${product.name}: ${t.errors.INSUFFICIENT_STOCK}`)
-  }
-
-  // A barcode scanner types the code and presses Enter: add the match straight to the cart.
-  const submitSearch = async () => {
-    const term = query.trim()
-    if (term === '') return
-    const items = await fetchProducts(term)
-    if (!items) return
-    const match = items.find((item) => item.barcode === term) ?? (items.length === 1 ? items[0] : null)
-    if (match) {
-      addProduct(match)
-      setQuery('')
-    }
-  }
-
-  const amounts = cart.lines.map((line) => ({
-    quantity: line.quantity,
-    unitPrice: line.product.salePrice,
-    discount: line.discount
-  }))
-  const subtotal = computeTotals(amounts, 0, 0).subtotal
-  const discountAmount =
-    cart.discountMode === 'percent'
-      ? roundTo((subtotal * Math.min(cart.discountValue, 100)) / 100, 2)
-      : cart.discountValue
-  const totals = computeTotals(amounts, discountAmount, taxRate)
-  const sellable = cart.lines.filter((line) => line.quantity > 0)
-  const customer = customers.find((candidate) => candidate.id === cart.customerId) ?? null
-
-  const cartPayload = () => ({
-    items: sellable.map((line) => ({
-      productId: line.product.id,
-      quantity: line.quantity,
-      discount: line.discount
-    })),
-    discount: totals.discount,
-    customerId: cart.customerId
-  })
-
-  const hold = async () => {
-    const result = await api('sales:hold', cartPayload())
-    if (!result.ok) {
-      setError(errorText(result))
-      return
-    }
-    cart.clear()
-    setError(null)
-    setNotice(t.pos.held)
-    setHeldCount((count) => count + 1)
-    focusSearch()
-  }
-
-  const afterSale = () => {
-    setDialog(null)
-    void fetchProducts(query.trim())
-    void refreshSideData()
-    focusSearch()
-  }
+  const pos = usePosPage()
+  const { cart, money, totals } = pos
 
   return (
     <div className="flex h-full gap-6">
@@ -150,12 +39,12 @@ export function PosPage() {
             className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-ink-muted"
           />
           <input
-            ref={searchRef}
+            ref={pos.searchRef}
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={pos.query}
+            onChange={(event) => pos.setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') void submitSearch()
+              if (event.key === 'Enter') void pos.submitSearch()
             }}
             placeholder={t.pos.searchPlaceholder}
             aria-label={t.pos.searchPlaceholder}
@@ -164,25 +53,45 @@ export function PosPage() {
           />
         </div>
 
-        {error && <Alert>{error}</Alert>}
-        {notice && <Alert tone="success">{notice}</Alert>}
+        {pos.posCategories && pos.topCategories.length > 0 && (
+          <div role="group" aria-label={t.pos.categories} className="flex flex-wrap gap-2">
+            {[{ id: null, name: t.products.allCategories }, ...pos.topCategories].map(
+              (category) => (
+                <button
+                  key={category.id ?? 'all'}
+                  type="button"
+                  aria-pressed={pos.categoryId === category.id}
+                  onClick={() => pos.chooseCategory(category.id)}
+                  className={cn(
+                    'type-label h-11 rounded-md border px-4 transition-colors duration-[120ms] ease-brand',
+                    pos.categoryId === category.id
+                      ? 'border-primary bg-primary text-on-primary'
+                      : 'border-border-strong bg-bg text-ink hover:bg-surface'
+                  )}
+                >
+                  {category.name}
+                </button>
+              )
+            )}
+          </div>
+        )}
+
+        {pos.error && <Alert>{pos.error}</Alert>}
+        {pos.notice && <Alert tone="success">{pos.notice}</Alert>}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {products?.length === 0 && (
+          {pos.products?.length === 0 && (
             <p className="type-body py-12 text-center text-ink-muted">{t.pos.noProducts}</p>
           )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-            {products?.map((product) => {
-              const soldOut = product.quantity <= 0
+            {pos.products?.map((product) => {
+              const soldOut = product.trackStock && product.quantity <= 0
               return (
                 <button
                   key={product.id}
                   type="button"
                   disabled={soldOut}
-                  onClick={() => {
-                    addProduct(product)
-                    focusSearch()
-                  }}
+                  onClick={() => pos.pickProduct(product)}
                   className={cn(
                     'flex min-h-28 flex-col justify-between gap-2 rounded-md border border-border bg-surface p-4 text-start transition-shadow duration-200 ease-brand',
                     soldOut ? 'cursor-not-allowed opacity-55' : 'hover:shadow-md'
@@ -193,11 +102,13 @@ export function PosPage() {
                     <span className="type-label-strong text-accent tabular-nums">
                       {money(product.salePrice)}
                     </span>
-                    <span className="type-caption text-ink-muted">
-                      {soldOut
-                        ? t.pos.outOfStock
-                        : t.pos.inStock(formatQuantity(product.quantity), unitLabel(product.unit))}
-                    </span>
+                    {product.trackStock && (
+                      <span className="type-caption text-ink-muted">
+                        {soldOut
+                          ? t.pos.outOfStock
+                          : t.pos.inStock(formatQuantity(product.quantity), unitLabel(product.unit))}
+                      </span>
+                    )}
                   </span>
                 </button>
               )
@@ -211,113 +122,133 @@ export function PosPage() {
         <header className="flex items-center justify-between gap-2 border-b border-border px-5 py-3">
           <h2 className="type-h4">{t.pos.cart}</h2>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={() => setDialog('held')}>
-              {t.pos.heldCount(heldCount)}
+            <Button variant="ghost" size="sm" onClick={pos.openHeld}>
+              {t.pos.heldCount(pos.heldCount)}
             </Button>
             <IconButton
               icon={X}
               label={t.pos.clear}
               disabled={cart.lines.length === 0}
-              onClick={() => {
-                cart.clear()
-                focusSearch()
-              }}
+              onClick={pos.clearCart}
             />
           </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5">
-          {cart.lines.length === 0 ? (
+          {pos.lines.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 py-10 text-center text-ink-muted">
               <ShoppingCart aria-hidden className="size-10" />
               <p className="type-body-sm">{t.pos.emptyCart}</p>
             </div>
           ) : (
             <ul>
-              {cart.lines.map((line) => {
-                const step = quantityStep(line.product.unit)
-                const atMax = line.quantity >= line.product.quantity
-                return (
-                  <li key={line.product.id} className="border-b border-border py-3 last:border-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="type-label text-ink">{line.product.name}</p>
-                        <p className="type-caption text-ink-muted tabular-nums">
-                          {money(line.product.salePrice)} / {unitLabel(line.product.unit)}
-                        </p>
-                      </div>
-                      <IconButton
-                        icon={Trash2}
-                        label={t.pos.remove}
-                        tone="danger"
-                        onClick={() => cart.remove(line.product.id)}
-                      />
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-2">
-                      <IconButton
-                        icon={Minus}
-                        label={t.pos.decrease}
-                        className="border border-border-strong"
-                        disabled={line.quantity <= 0}
-                        onClick={() => cart.setQuantity(line.product.id, line.quantity - step)}
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        max={line.product.quantity}
-                        step="any"
-                        dir="ltr"
-                        value={line.quantity}
-                        onChange={(event) =>
-                          cart.setQuantity(line.product.id, parseNumber(event.target.value) ?? 0)
-                        }
-                        aria-label={`${t.pos.quantity}: ${line.product.name}`}
-                        className={cn(SMALL_INPUT, 'w-16')}
-                      />
-                      <IconButton
-                        icon={Plus}
-                        label={t.pos.increase}
-                        className="border border-border-strong"
-                        disabled={atMax}
-                        onClick={() => cart.setQuantity(line.product.id, line.quantity + step)}
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        step="any"
-                        dir="ltr"
-                        value={line.discount === 0 ? '' : line.discount}
-                        placeholder={t.sales.discount}
-                        onChange={(event) =>
-                          cart.setLineDiscount(line.product.id, parseNumber(event.target.value) ?? 0)
-                        }
-                        aria-label={`${t.pos.lineDiscount}: ${line.product.name}`}
-                        className={cn(SMALL_INPUT, 'w-20 placeholder:text-ink-muted')}
-                      />
-                      <span className="type-label-strong ms-auto text-ink tabular-nums">
-                        {money(
-                          lineTotal({
-                            quantity: line.quantity,
-                            unitPrice: line.product.salePrice,
-                            discount: line.discount
-                          })
-                        )}
-                      </span>
-                    </div>
-                    {atMax && (
-                      <p className="type-caption mt-1 text-warning">
-                        {t.pos.maxStock(formatQuantity(line.product.quantity))}
+              {pos.lines.map(({ line, step, max, atMax, noteOptions, total }) => (
+                <li key={line.id} className="border-b border-border py-3 last:border-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="type-label text-ink">{line.product.name}</p>
+                      <p className="type-caption text-ink-muted tabular-nums">
+                        {money(line.product.salePrice)} / {unitLabel(line.product.unit)}
                       </p>
-                    )}
-                  </li>
-                )
-              })}
+                    </div>
+                    <IconButton
+                      icon={Trash2}
+                      label={t.pos.remove}
+                      tone="danger"
+                      onClick={() => cart.remove(line.id)}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <IconButton
+                      icon={Minus}
+                      label={t.pos.decrease}
+                      className="border border-border-strong"
+                      disabled={line.quantity <= 0}
+                      onClick={() => cart.setQuantity(line.id, line.quantity - step)}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={line.product.trackStock ? max : undefined}
+                      step="any"
+                      dir="ltr"
+                      value={line.quantity}
+                      onChange={(event) =>
+                        cart.setQuantity(line.id, parseNumber(event.target.value) ?? 0)
+                      }
+                      aria-label={`${t.pos.quantity}: ${line.product.name}`}
+                      className={cn(SMALL_INPUT, 'w-16')}
+                    />
+                    <IconButton
+                      icon={Plus}
+                      label={t.pos.increase}
+                      className="border border-border-strong"
+                      disabled={atMax}
+                      onClick={() => cart.setQuantity(line.id, line.quantity + step)}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      dir="ltr"
+                      value={line.discount === 0 ? '' : line.discount}
+                      placeholder={t.sales.discount}
+                      onChange={(event) =>
+                        cart.setLineDiscount(line.id, parseNumber(event.target.value) ?? 0)
+                      }
+                      aria-label={`${t.pos.lineDiscount}: ${line.product.name}`}
+                      className={cn(SMALL_INPUT, 'w-20 placeholder:text-ink-muted')}
+                    />
+                    <span className="type-label-strong ms-auto text-ink tabular-nums">
+                      {money(total)}
+                    </span>
+                  </div>
+                  {(noteOptions.length > 0 || line.note !== '') && (
+                    <button
+                      type="button"
+                      onClick={() => pos.openNote(line.id)}
+                      className={cn(
+                        'type-body-sm mt-2 flex min-h-9 w-full items-center gap-2 rounded-sm border border-border-strong bg-bg px-2 py-1 text-start hover:bg-surface',
+                        line.note === '' ? 'text-ink-muted' : 'text-ink'
+                      )}
+                    >
+                      <NotebookPen aria-hidden className="size-4 shrink-0" />
+                      {line.note === '' ? t.pos.addNote : line.note}
+                    </button>
+                  )}
+                  {atMax && (
+                    <p className="type-caption mt-1 text-warning">
+                      {t.pos.maxStock(formatQuantity(line.product.quantity))}
+                    </p>
+                  )}
+                </li>
+              ))}
             </ul>
           )}
         </div>
 
         <footer className="space-y-3 border-t border-border px-5 py-4">
+          {pos.orderTypes && (
+            <div role="group" aria-label={t.pos.orderType} className="flex gap-2">
+              {ORDER_TYPES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={cart.orderType === option}
+                  onClick={() => cart.setOrderType(option)}
+                  className={cn(
+                    'type-label h-10 flex-1 rounded-sm border transition-colors duration-[120ms] ease-brand',
+                    cart.orderType === option
+                      ? 'border-primary bg-primary text-on-primary'
+                      : 'border-border-strong bg-bg text-ink hover:bg-surface'
+                  )}
+                >
+                  {t.orderTypes[option]}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="block space-y-1">
             <span className="type-label text-ink">{t.pos.customer}</span>
             <select
@@ -328,15 +259,15 @@ export function PosPage() {
               className="type-body-sm h-10 w-full rounded-sm border border-border-strong bg-bg px-3 text-ink"
             >
               <option value="">{t.pos.walkIn}</option>
-              {customers.map((option) => (
+              {pos.customers.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name}
                 </option>
               ))}
             </select>
-            {customer && customer.balance > 0 && (
+            {pos.customer && pos.customer.balance > 0 && (
               <span className="type-caption block text-warning">
-                {t.pos.customerDebt(money(customer.balance))}
+                {t.pos.customerDebt(money(pos.customer.balance))}
               </span>
             )}
           </label>
@@ -382,9 +313,9 @@ export function PosPage() {
                 <dd className="tabular-nums">− {money(totals.discount)}</dd>
               </div>
             )}
-            {taxRate > 0 && (
+            {pos.taxRate > 0 && (
               <div className="flex justify-between">
-                <dt className="text-ink-muted">{t.pos.tax(taxRate)}</dt>
+                <dt className="text-ink-muted">{t.pos.tax(pos.taxRate)}</dt>
                 <dd className="tabular-nums">{money(totals.tax)}</dd>
               </div>
             )}
@@ -398,45 +329,42 @@ export function PosPage() {
             <Button
               variant="secondary"
               icon={<PauseCircle aria-hidden className="size-4" />}
-              disabled={sellable.length === 0}
-              onClick={hold}
+              disabled={!pos.canCheckout}
+              onClick={pos.hold}
             >
               {t.pos.hold}
             </Button>
-            <Button
-              className="flex-1"
-              disabled={sellable.length === 0}
-              onClick={() => {
-                setError(null)
-                setNotice(null)
-                setDialog('payment')
-              }}
-            >
+            <Button className="flex-1" disabled={!pos.canCheckout} onClick={pos.openPayment}>
               {t.pos.pay} — {money(totals.total)}
             </Button>
           </div>
         </footer>
       </aside>
 
-      {dialog === 'payment' && (
+      {pos.dialog === 'payment' && (
         <PaymentModal
-          cart={cartPayload()}
+          cart={pos.cartPayload()}
           total={totals.total}
-          customer={customer}
+          customer={pos.customer}
           onCompleted={() => cart.clear()}
-          onClose={afterSale}
+          onClose={pos.afterSale}
         />
       )}
-      {dialog === 'held' && (
+      {pos.noteLine && (
+        <LineNoteModal
+          line={pos.noteLine}
+          options={pos.noteLineOptions}
+          onApply={(note, count) => {
+            if (pos.noteLine) cart.setLineNote(pos.noteLine.id, note, count)
+          }}
+          onClose={pos.closeNote}
+        />
+      )}
+      {pos.dialog === 'held' && (
         <HeldSalesModal
           cartHasItems={cart.lines.length > 0}
-          onResumed={(held) => {
-            cart.load(held)
-            const dropped = held.items.length - useCartStore.getState().lines.length
-            setNotice(dropped > 0 ? t.pos.unavailableDropped : null)
-            setError(null)
-          }}
-          onClose={afterSale}
+          onResumed={pos.resumeHeld}
+          onClose={pos.afterSale}
         />
       )}
     </div>

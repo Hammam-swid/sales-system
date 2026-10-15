@@ -40,6 +40,7 @@ import type {
   RestoreBackupRequest,
   SaveSettingsRequest
 } from './settings'
+import type { StoreType } from './store'
 import type {
   BalancesReport,
   DateRangeRequest,
@@ -96,6 +97,8 @@ export interface SetupRequest {
   password: string
   storeName: string
   language: Language
+  // Cannot be changed after setup.
+  storeType: StoreType
 }
 
 export interface ChangePasswordRequest {

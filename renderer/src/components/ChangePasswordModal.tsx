@@ -1,7 +1,6 @@
-import { useState, type FormEvent } from 'react'
 import { PASSWORD_MIN_LENGTH } from '../../../shared/ipc'
+import { useChangePasswordModal } from '../hooks/components/useChangePasswordModal'
 import { t } from '../i18n'
-import { api, errorText } from '../lib/api'
 import { Alert } from './ui/Alert'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
@@ -9,25 +8,19 @@ import { PasswordField } from './ui/PasswordField'
 
 // Lets the signed-in user change their own password.
 export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-
-  const mismatch = confirmPassword.length > 0 && confirmPassword !== newPassword
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (newPassword !== confirmPassword) return
-    setSaving(true)
-    setError(null)
-    const result = await api('auth:changePassword', { currentPassword, newPassword })
-    setSaving(false)
-    if (result.ok) setDone(true)
-    else setError(errorText(result))
-  }
+  const {
+    currentPassword,
+    setCurrentPassword,
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    mismatch,
+    error,
+    saving,
+    done,
+    submit
+  } = useChangePasswordModal()
 
   return (
     <Modal title={t.header.changePassword} onClose={onClose}>

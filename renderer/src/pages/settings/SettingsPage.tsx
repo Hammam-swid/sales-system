@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { Alert } from '../../components/ui/Alert'
 import { Tabs } from '../../components/ui/Tabs'
+import { useSettingsPage } from '../../hooks/settings/useSettingsPage'
 import { t } from '../../i18n'
 import { BackupTab } from './BackupTab'
 import { GeneralSettingsTab } from './GeneralSettingsTab'
-
-type TabId = 'general' | 'backup'
 
 const TABS = [
   { id: 'general' as const, label: t.settings.tabGeneral },
@@ -13,8 +11,7 @@ const TABS = [
 ]
 
 export function SettingsPage() {
-  const [tab, setTab] = useState<TabId>('general')
-  const [notice, setNotice] = useState<string | null>(null)
+  const { tab, changeTab, notice, setNotice } = useSettingsPage()
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -26,10 +23,7 @@ export function SettingsPage() {
       <Tabs
         tabs={TABS}
         active={tab}
-        onChange={(id) => {
-          setTab(id)
-          setNotice(null)
-        }}
+        onChange={changeTab}
       />
 
       {notice && <Alert tone="success">{notice}</Alert>}

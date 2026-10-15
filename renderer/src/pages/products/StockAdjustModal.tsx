@@ -1,13 +1,12 @@
-import { useState, type FormEvent } from 'react'
 import type { ProductDto, StockMovementType } from '../../../../shared/catalog'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { SelectField, TextField } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
+import { useStockAdjustModal } from '../../hooks/products/useStockAdjustModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
-import { formatQuantity, parseNumber } from '../../lib/format'
-import { unitLabel } from './ProductsTab'
+import { formatQuantity } from '../../lib/format'
+import { unitLabel } from '../../lib/units'
 
 interface StockAdjustModalProps {
   product: ProductDto
@@ -22,38 +21,19 @@ const AMOUNT_LABEL: Record<StockMovementType, string> = {
 }
 
 export function StockAdjustModal({ product, onClose, onSaved }: StockAdjustModalProps) {
-  const [type, setType] = useState<StockMovementType>('in')
-  const [quantity, setQuantity] = useState('')
-  const [reason, setReason] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const amount = parseNumber(quantity)
-  const after =
-    amount === null
-      ? null
-      : type === 'in'
-        ? product.quantity + amount
-        : type === 'out'
-          ? product.quantity - amount
-          : amount
-  const insufficient = after !== null && after < 0
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (amount === null || insufficient) return
-    setSaving(true)
-    setError(null)
-    const result = await api('products:adjustStock', {
-      productId: product.id,
-      type,
-      quantity: amount,
-      reason
-    })
-    setSaving(false)
-    if (result.ok) onSaved()
-    else setError(errorText(result))
-  }
+  const {
+    type,
+    setType,
+    quantity,
+    setQuantity,
+    reason,
+    setReason,
+    after,
+    insufficient,
+    error,
+    saving,
+    submit
+  } = useStockAdjustModal({ product, onSaved })
 
   const unit = unitLabel(product.unit)
 

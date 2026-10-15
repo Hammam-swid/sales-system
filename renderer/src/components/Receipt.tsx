@@ -1,10 +1,7 @@
-import { useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import type { SaleDto } from '../../../shared/sales'
+import { formatOrderNumber, warrantyEnd } from '../../../shared/store'
 import { t } from '../i18n'
-import { formatDateTime, formatMoney, formatQuantity } from '../lib/format'
-import { useAuthStore } from '../store/auth'
-import { usePrintStore } from '../store/print'
+import { formatDate, formatDateTime, formatMoney, formatQuantity } from '../lib/format'
 import { useSettingsStore } from '../store/settings'
 
 // 80mm thermal receipt. Plain black on white with fixed sizes: it is printed, not themed.
@@ -23,11 +20,25 @@ export function Receipt({ sale }: { sale: SaleDto }) {
       </header>
 
       <div className="receipt-rule" />
+      {sale.orderNumber !== null && (
+        <div className="receipt-center">
+          <div>{t.receipt.orderNumber}</div>
+          <div dir="ltr" className="receipt-order-number">
+            {formatOrderNumber(sale.orderNumber)}
+          </div>
+        </div>
+      )}
       <div className="receipt-center receipt-strong">{t.receipt.invoice}</div>
       <div className="receipt-row">
         <span>{t.pos.invoiceNumber}</span>
         <span dir="ltr">{sale.invoiceNumber}</span>
       </div>
+      {sale.orderType && (
+        <div className="receipt-row">
+          <span>{t.pos.orderType}</span>
+          <span>{t.orderTypes[sale.orderType]}</span>
+        </div>
+      )}
       <div className="receipt-row">
         <span>{t.sales.date}</span>
         <span>{formatDateTime(sale.createdAt)}</span>
@@ -56,6 +67,15 @@ export function Receipt({ sale }: { sale: SaleDto }) {
             </span>
             <span>{money(item.total)}</span>
           </div>
+          {item.note && <div className="receipt-note">{item.note}</div>}
+          {item.warrantyMonths > 0 && (
+            <div className="receipt-note">
+              {t.receipt.warranty(
+                item.warrantyMonths,
+                formatDate(`${warrantyEnd(sale.createdAt, item.warrantyMonths)}T00:00:00`)
+              )}
+            </div>
+          )}
         </div>
       ))}
 
@@ -94,37 +114,5 @@ export function Receipt({ sale }: { sale: SaleDto }) {
       <div className="receipt-rule" />
       <footer className="receipt-center">{t.receipt.thanks}</footer>
     </div>
-  )
-}
-
-// Mounted once in the app shell. When an invoice is queued for printing it renders the
-// receipt outside the app root (which the print stylesheet hides) and opens the print dialog.
-export function PrintHost() {
-  const sale = usePrintStore((state) => state.sale)
-  const done = usePrintStore((state) => state.done)
-  const signedIn = useAuthStore((state) => state.user !== null)
-
-  useEffect(() => {
-    if (!sale) return
-    // Tells the print stylesheet this is a receipt, not a report.
-    document.body.classList.add('printing-receipt')
-    window.addEventListener('afterprint', done, { once: true })
-    // Let the receipt paint before the dialog opens.
-    const timer = setTimeout(() => window.print(), 50)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('afterprint', done)
-      document.body.classList.remove('printing-receipt')
-    }
-  }, [sale, done])
-
-  if (!sale || !signedIn) return null
-  return createPortal(
-    <div className="print-host">
-      {/* Overrides the A4 default only while a receipt is being printed. */}
-      <style>{'@page { size: 80mm auto; margin: 0; }'}</style>
-      <Receipt sale={sale} />
-    </div>,
-    document.body
   )
 }

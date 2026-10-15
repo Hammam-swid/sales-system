@@ -16,6 +16,15 @@ import {
   type SaleDto,
   type SaleSummaryDto
 } from '../../shared/sales'
+import {
+  MAX_LINE_NOTE_LENGTH,
+  ORDER_NUMBER_MAX,
+  ORDER_TYPES,
+  hasFeature,
+  localDate,
+  type OrderType,
+  type StoreType
+} from '../../shared/store'
 import type { SessionUser } from '../auth/session'
 import { getDataSource } from '../database/data-source'
 import {
@@ -29,6 +38,7 @@ import {
 } from '../database/entities'
 import { AppError } from '../errors'
 import { recordAudit } from './audit.service'
+import { readStoreType } from './settings.service'
 import {
   asAmount,
   asId,
@@ -42,16 +52,21 @@ const MAX_LINES = 300
 const MAX_PAGE_SIZE = 100
 const INVOICE_COUNTER_KEY = 'next_invoice_number'
 
+const ORDER_NUMBER_DATE_KEY = 'order_number_date'
+const ORDER_NUMBER_KEY = 'next_order_number'
+
 interface CartLine {
   productId: number
   quantity: number
   discount: number
+  note: string | null
 }
 
 function parseCart(input: Record<string, unknown>): {
   lines: CartLine[]
   discount: number
   customerId: number | null
+  orderType: OrderType | null
 } {
   if (!Array.isArray(input.items) || input.items.length === 0 || input.items.length > MAX_LINES) {
     throw new AppError('VALIDATION', 'items')
@@ -63,17 +78,31 @@ function parseCart(input: Record<string, unknown>): {
     return {
       productId: asId(item.productId, 'productId'),
       quantity,
-      discount: asAmount(item.discount ?? 0, 'discount')
+      discount: asAmount(item.discount ?? 0, 'discount'),
+      note: asOptionalText(item.note, 'note', MAX_LINE_NOTE_LENGTH)
     }
   })
-  // One line per product keeps stock checks and returns unambiguous.
-  if (new Set(lines.map((line) => line.productId)).size !== lines.length) {
-    throw new AppError('VALIDATION', 'items')
-  }
   return {
     lines,
     discount: asAmount(input.discount ?? 0, 'discount'),
-    customerId: asOptionalId(input.customerId, 'customerId')
+    customerId: asOptionalId(input.customerId, 'customerId'),
+    orderType:
+      input.orderType === null || input.orderType === undefined
+        ? null
+        : asOneOf(input.orderType, ORDER_TYPES, 'orderType')
+  }
+}
+
+// What the shop's type allows on a sale; anything else sent by the screen is dropped.
+async function saleExtras(
+  manager: EntityManager,
+  cart: { lines: CartLine[]; orderType: OrderType | null }
+): Promise<{ storeType: StoreType; orderType: OrderType | null; notes: boolean }> {
+  const storeType = await readStoreType(manager)
+  return {
+    storeType,
+    orderType: hasFeature(storeType, 'orderTypes') ? cart.orderType : null,
+    notes: hasFeature(storeType, 'lineNotes')
   }
 }
 
@@ -86,8 +115,14 @@ interface PricedLine extends CartLine {
 async function priceLines(manager: EntityManager, lines: CartLine[]): Promise<PricedLine[]> {
   const repository = manager.getRepository(Product)
   const priced: PricedLine[] = []
+  // The same product may be on several lines (each with its own note); they share
+  // one entity, so every line counts down the same stock figure.
+  const loaded = new Map<number, Product | null>()
   for (const line of lines) {
-    const product = await repository.findOneBy({ id: line.productId })
+    if (!loaded.has(line.productId)) {
+      loaded.set(line.productId, await repository.findOneBy({ id: line.productId }))
+    }
+    const product = loaded.get(line.productId)
     if (!product || !product.isActive) {
       throw new AppError('PRODUCT_UNAVAILABLE', product?.name ?? `#${line.productId}`)
     }
@@ -113,14 +148,36 @@ async function nextInvoiceNumber(manager: EntityManager): Promise<string> {
   return `INV-${String(next).padStart(6, '0')}`
 }
 
+// The short number called out to the customer: starts again at 1 each day,
+// and after ORDER_NUMBER_MAX on a very busy one.
+async function nextOrderNumber(manager: EntityManager): Promise<number> {
+  const repository = manager.getRepository(Setting)
+  const today = localDate()
+  const day = await repository.findOneBy({ key: ORDER_NUMBER_DATE_KEY })
+  const counter = await repository.findOneBy({ key: ORDER_NUMBER_KEY })
+  const stored = Math.floor(Number(counter?.value)) || 1
+  const next = day?.value === today && stored >= 1 && stored <= ORDER_NUMBER_MAX ? stored : 1
+  await repository.save([
+    repository.create({ key: ORDER_NUMBER_DATE_KEY, value: today }),
+    repository.create({
+      key: ORDER_NUMBER_KEY,
+      value: String(next >= ORDER_NUMBER_MAX ? 1 : next + 1)
+    })
+  ])
+  return next
+}
+
 function toPosProduct(product: Product): PosProduct {
   return {
     id: product.id,
     name: product.name,
     barcode: product.barcode,
+    categoryId: product.categoryId,
     unit: product.unit,
     salePrice: product.salePrice,
     quantity: product.quantity,
+    trackStock: product.trackStock,
+    expiryDate: product.expiryDate,
     isActive: product.isActive
   }
 }
@@ -132,6 +189,8 @@ function toSaleDto(sale: Sale): SaleDto {
   return {
     id: sale.id,
     invoiceNumber: sale.invoiceNumber,
+    orderType: sale.orderType,
+    orderNumber: sale.orderNumber,
     status: sale.status,
     customerId: sale.customerId,
     customerName: sale.customer?.name ?? null,
@@ -154,7 +213,9 @@ function toSaleDto(sale: Sale): SaleDto {
       unitPrice: item.unitPrice,
       discount: item.discount,
       total: item.total,
-      returnedQuantity: item.returnedQuantity
+      returnedQuantity: item.returnedQuantity,
+      note: item.note,
+      warrantyMonths: item.warrantyMonths
     }))
   }
 }
@@ -174,11 +235,16 @@ export async function checkout(payload: unknown, actor: SessionUser): Promise<Sa
 
   return getDataSource().transaction(async (manager) => {
     const lines = await priceLines(manager, cart.lines)
+    const wanted = new Map<Product, number>()
     for (const line of lines) {
-      if (line.quantity > line.product.quantity) {
-        throw new AppError('INSUFFICIENT_STOCK', line.product.name)
+      wanted.set(line.product, roundTo((wanted.get(line.product) ?? 0) + line.quantity, 3))
+    }
+    for (const [product, quantity] of wanted) {
+      if (product.trackStock && quantity > product.quantity) {
+        throw new AppError('INSUFFICIENT_STOCK', product.name)
       }
     }
+    const extras = await saleExtras(manager, cart)
 
     const totals = computeTotals(lines, cart.discount, await readTaxRate(manager))
     if (cart.discount > totals.subtotal) throw new AppError('VALIDATION', 'discount')
@@ -208,6 +274,10 @@ export async function checkout(payload: unknown, actor: SessionUser): Promise<Sa
         paidAmount,
         paymentStatus,
         paymentMethod,
+        orderType: extras.orderType,
+        orderNumber: hasFeature(extras.storeType, 'orderNumbers')
+          ? await nextOrderNumber(manager)
+          : null,
         status: 'completed'
       })
     )
@@ -223,9 +293,13 @@ export async function checkout(payload: unknown, actor: SessionUser): Promise<Sa
           costPrice: line.product.purchasePrice,
           discount: line.discount,
           total: lineTotal(line),
-          returnedQuantity: 0
+          returnedQuantity: 0,
+          note: extras.notes ? line.note : null,
+          warrantyMonths: line.product.warrantyMonths
         })
       )
+      // Items sold without stock have nothing to count down.
+      if (!line.product.trackStock) continue
       line.product.quantity = roundTo(line.product.quantity - line.quantity, 3)
       await manager.getRepository(Product).save(line.product)
       await manager.getRepository(InventoryTransaction).save(
@@ -257,6 +331,7 @@ export async function holdSale(payload: unknown, actor: SessionUser): Promise<{ 
   return getDataSource().transaction(async (manager) => {
     const lines = await priceLines(manager, cart.lines)
     const totals = computeTotals(lines, cart.discount, await readTaxRate(manager))
+    const extras = await saleExtras(manager, cart)
 
     if (cart.customerId !== null) {
       const exists = await manager.getRepository(Customer).existsBy({ id: cart.customerId })
@@ -273,6 +348,8 @@ export async function holdSale(payload: unknown, actor: SessionUser): Promise<{ 
         paidAmount: 0,
         paymentStatus: 'unpaid',
         paymentMethod: 'cash',
+        orderType: extras.orderType,
+        orderNumber: null,
         status: 'held'
       })
     )
@@ -286,7 +363,9 @@ export async function holdSale(payload: unknown, actor: SessionUser): Promise<{ 
           costPrice: line.product.purchasePrice,
           discount: line.discount,
           total: lineTotal(line),
-          returnedQuantity: 0
+          returnedQuantity: 0,
+          note: extras.notes ? line.note : null,
+          warrantyMonths: line.product.warrantyMonths
         })
       )
     }
@@ -299,6 +378,7 @@ function toHeldSaleDto(sale: Sale): HeldSaleDto {
     id: sale.id,
     customerId: sale.customerId,
     customerName: sale.customer?.name ?? null,
+    orderType: sale.orderType,
     discount: sale.discount,
     total: sale.total,
     createdAt: sale.createdAt.toISOString(),
@@ -308,7 +388,8 @@ function toHeldSaleDto(sale: Sale): HeldSaleDto {
       .map((item) => ({
         product: toPosProduct(item.product as Product),
         quantity: item.quantity,
-        discount: item.discount
+        discount: item.discount,
+        note: item.note
       }))
   }
 }
@@ -450,21 +531,24 @@ export async function returnSale(payload: unknown, actor: SessionUser): Promise<
 
       // Stock comes back even if the product has since been archived.
       const product = await manager.getRepository(Product).findOneBy({ id: item.productId })
-      if (product) {
+      if (product?.trackStock) {
         product.quantity = roundTo(product.quantity + quantity, 3)
         await manager.getRepository(Product).save(product)
       }
-      await manager.getRepository(InventoryTransaction).save(
-        manager.getRepository(InventoryTransaction).create({
-          productId: item.productId,
-          type: 'in',
-          quantity,
-          reason: `مرتجع — ${sale.invoiceNumber}`,
-          referenceType: 'sale',
-          referenceId: sale.id,
-          userId: actor.id
-        })
-      )
+      // An item sold without stock left no movement, so its return leaves none either.
+      if (!product || product.trackStock) {
+        await manager.getRepository(InventoryTransaction).save(
+          manager.getRepository(InventoryTransaction).create({
+            productId: item.productId,
+            type: 'in',
+            quantity,
+            reason: `مرتجع — ${sale.invoiceNumber}`,
+            referenceType: 'sale',
+            referenceId: sale.id,
+            userId: actor.id
+          })
+        )
+      }
       returnedLines.push({ name: item.product?.name ?? `#${item.productId}`, quantity })
     }
 

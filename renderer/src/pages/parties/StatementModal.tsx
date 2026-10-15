@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { StatementDto, StatementEntryKind } from '../../../../shared/parties'
+import type { StatementEntryKind } from '../../../../shared/parties'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { useStatementModal } from '../../hooks/parties/useStatementModal'
 import { t } from '../../i18n'
-import { errorText } from '../../lib/api'
-import { formatDateTime, formatMoney } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
+import { formatDateTime } from '../../lib/format'
 import type { PartyKind } from './partyKinds'
 
 const KIND_TONE: Record<StatementEntryKind, 'brand' | 'success' | 'neutral'> = {
@@ -27,39 +25,8 @@ interface StatementModalProps {
 // Full history for one customer or supplier, with a running balance, plus a check
 // that the stored balance matches what the history adds up to.
 export function StatementModal({ kind, partyId, onChanged, onClose }: StatementModalProps) {
-  const currency = useCurrency()
-  const money = (value: number) => formatMoney(value, currency)
-  const [statement, setStatement] = useState<StatementDto | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [fixing, setFixing] = useState(false)
-
-  const load = useCallback(async () => {
-    const result = await kind.statement(partyId)
-    if (result.ok) setStatement(result.data)
-    else setError(errorText(result))
-  }, [kind, partyId])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const recalculate = async () => {
-    setFixing(true)
-    const result = await kind.recalculate(partyId)
-    setFixing(false)
-    if (!result.ok) {
-      setError(errorText(result))
-      return
-    }
-    setNotice(t.parties.recalculated)
-    onChanged()
-    void load()
-  }
-
-  const mismatch = statement ? statement.computedBalance !== statement.party.balance : false
-  // Newest first on screen; the running balance was computed oldest first.
-  const rows = statement ? [...statement.entries].reverse() : []
+  const { money, statement, error, notice, fixing, recalculate, mismatch, rows } =
+    useStatementModal({ kind, partyId, onChanged })
 
   return (
     <Modal

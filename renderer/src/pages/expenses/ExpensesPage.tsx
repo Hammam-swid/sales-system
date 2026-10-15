@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { ExpenseCategoryDto } from '../../../../shared/expenses'
 import { Alert } from '../../components/ui/Alert'
 import { Tabs } from '../../components/ui/Tabs'
+import { useExpensesPage } from '../../hooks/expenses/useExpensesPage'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { ExpenseCategoriesTab } from './ExpenseCategoriesTab'
 import { ExpensesTab } from './ExpensesTab'
-
-type TabId = 'expenses' | 'categories'
 
 const TABS = [
   { id: 'expenses' as const, label: t.expenses.tabExpenses },
@@ -15,20 +11,7 @@ const TABS = [
 ]
 
 export function ExpensesPage() {
-  const [tab, setTab] = useState<TabId>('expenses')
-  const [categories, setCategories] = useState<ExpenseCategoryDto[]>([])
-  const [notice, setNotice] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadCategories = useCallback(async () => {
-    const result = await api('expenseCategories:list')
-    if (result.ok) setCategories(result.data)
-    else setError(errorText(result))
-  }, [])
-
-  useEffect(() => {
-    void loadCategories()
-  }, [loadCategories])
+  const { tab, changeTab, categories, loadCategories, notice, setNotice, error } = useExpensesPage()
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -40,10 +23,7 @@ export function ExpensesPage() {
       <Tabs
         tabs={TABS}
         active={tab}
-        onChange={(id) => {
-          setTab(id)
-          setNotice(null)
-        }}
+        onChange={changeTab}
       />
 
       {notice && <Alert tone="success">{notice}</Alert>}

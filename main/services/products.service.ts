@@ -8,6 +8,7 @@ import {
 } from '../../shared/catalog'
 import { can } from '../../shared/permissions'
 import { roundTo } from '../../shared/sales'
+import { EXPIRY_WARNING_DAYS, MAX_WARRANTY_MONTHS, localDate } from '../../shared/store'
 import type { SessionUser } from '../auth/session'
 import { getDataSource } from '../database/data-source'
 import {
@@ -25,6 +26,7 @@ import {
   asId,
   asObject,
   asOneOf,
+  asOptionalDate,
   asOptionalId,
   asOptionalText,
   asText
@@ -36,7 +38,17 @@ const MAX_PAGE_SIZE = 100
 const OPENING_BALANCE_REASON = 'رصيد افتتاحي'
 
 function isLowStock(product: Product): boolean {
-  return product.isActive && product.quantity <= product.minQuantity
+  return product.isActive && product.trackStock && product.quantity <= product.minQuantity
+}
+
+const LOW_STOCK_SQL =
+  'product.isActive = :active AND product.trackStock = :active AND product.quantity <= product.minQuantity'
+// Already expired, or expiring within the warning window.
+const EXPIRING_SQL =
+  'product.isActive = :active AND product.expiryDate IS NOT NULL AND product.expiryDate <= :expiryLimit'
+
+function expiringParams(): { active: boolean; expiryLimit: string } {
+  return { active: true, expiryLimit: localDate(EXPIRY_WARNING_DAYS) }
 }
 
 // Cost prices are hidden from users who cannot manage products (cashiers).
@@ -53,6 +65,9 @@ function toProductDto(product: Product, actor: SessionUser): ProductDto {
     quantity: product.quantity,
     minQuantity: product.minQuantity,
     isLowStock: isLowStock(product),
+    expiryDate: product.expiryDate,
+    warrantyMonths: product.warrantyMonths,
+    trackStock: product.trackStock,
     isActive: product.isActive,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString()
@@ -81,6 +96,8 @@ export async function listProducts(
   const categoryId = asOptionalId(input.categoryId, 'categoryId')
   const status = asOneOf(input.status ?? 'active', ['active', 'inactive', 'all'] as const, 'status')
   const lowStockOnly = input.lowStockOnly === true
+  const expiringOnly = input.expiringOnly === true
+  const trackedOnly = input.trackedOnly === true
   const page = Math.max(1, Math.floor(Number(input.page) || 1))
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(Number(input.pageSize) || 25)))
 
@@ -105,11 +122,9 @@ export async function listProducts(
   if (status !== 'all') {
     query.andWhere('product.isActive = :isActive', { isActive: status === 'active' })
   }
-  if (lowStockOnly) {
-    query.andWhere('product.isActive = :active AND product.quantity <= product.minQuantity', {
-      active: true
-    })
-  }
+  if (lowStockOnly) query.andWhere(LOW_STOCK_SQL, { active: true })
+  if (expiringOnly) query.andWhere(EXPIRING_SQL, expiringParams())
+  if (trackedOnly) query.andWhere('product.trackStock = :tracked', { tracked: true })
 
   const [products, total] = await query
     .orderBy('product.name', 'ASC')
@@ -120,9 +135,11 @@ export async function listProducts(
 
   const lowStockCount = await repository
     .createQueryBuilder('product')
-    .where('product.isActive = :active AND product.quantity <= product.minQuantity', {
-      active: true
-    })
+    .where(LOW_STOCK_SQL, { active: true })
+    .getCount()
+  const expiringCount = await repository
+    .createQueryBuilder('product')
+    .where(EXPIRING_SQL, expiringParams())
     .getCount()
 
   return {
@@ -130,13 +147,15 @@ export async function listProducts(
     total,
     page,
     pageSize,
-    lowStockCount
+    lowStockCount,
+    expiringCount
   }
 }
 
 export async function saveProduct(payload: unknown, actor: SessionUser): Promise<ProductDto> {
   const input = asObject(payload)
   const id = asOptionalId(input.id, 'id')
+  const trackStock = asBoolean(input.trackStock ?? true, 'trackStock')
   const fields = {
     name: asText(input.name, 'name', 120),
     barcode: asOptionalText(input.barcode, 'barcode', 64),
@@ -144,7 +163,11 @@ export async function saveProduct(payload: unknown, actor: SessionUser): Promise
     unit: asOneOf(input.unit, PRODUCT_UNITS, 'unit'),
     purchasePrice: asAmount(input.purchasePrice, 'purchasePrice', PRICE_DECIMALS),
     salePrice: asAmount(input.salePrice, 'salePrice', PRICE_DECIMALS),
-    minQuantity: asAmount(input.minQuantity, 'minQuantity', QUANTITY_DECIMALS),
+    // An item sold without stock has no reorder threshold.
+    minQuantity: trackStock ? asAmount(input.minQuantity, 'minQuantity', QUANTITY_DECIMALS) : 0,
+    expiryDate: asOptionalDate(input.expiryDate, 'expiryDate'),
+    warrantyMonths: asAmount(input.warrantyMonths ?? 0, 'warrantyMonths', 0, MAX_WARRANTY_MONTHS),
+    trackStock,
     isActive: asBoolean(input.isActive, 'isActive')
   }
 
@@ -163,7 +186,7 @@ export async function saveProduct(payload: unknown, actor: SessionUser): Promise
     }
 
     if (id === null) {
-      const quantity = asAmount(input.quantity ?? 0, 'quantity', QUANTITY_DECIMALS)
+      const quantity = trackStock ? asAmount(input.quantity ?? 0, 'quantity', QUANTITY_DECIMALS) : 0
       const product = await repository.save(repository.create({ ...fields, quantity }))
       if (quantity > 0) {
         await manager.getRepository(InventoryTransaction).save(
@@ -260,6 +283,7 @@ export async function adjustStock(payload: unknown, actor: SessionUser): Promise
     const repository = manager.getRepository(Product)
     const product = await repository.findOneBy({ id: productId })
     if (!product) throw new AppError('NOT_FOUND')
+    if (!product.trackStock) throw new AppError('VALIDATION', 'trackStock')
 
     let newQuantity: number
     let recorded: number

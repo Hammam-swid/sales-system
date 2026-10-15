@@ -1,4 +1,5 @@
 // Types for shop settings and database backups.
+import type { StoreType } from './store'
 
 export const LANGUAGES = ['ar', 'en'] as const
 export type Language = (typeof LANGUAGES)[number]
@@ -13,9 +14,11 @@ export interface AppSettings {
   // Percentage, e.g. 15 for 15%.
   taxRate: number
   language: Language
+  // Chosen at first-run setup and fixed from then on.
+  storeType: StoreType
 }
 
-export type SaveSettingsRequest = AppSettings
+export type SaveSettingsRequest = Omit<AppSettings, 'storeType'>
 
 // Largest logo accepted, as the length of its data: URL.
 export const MAX_LOGO_LENGTH = 400_000

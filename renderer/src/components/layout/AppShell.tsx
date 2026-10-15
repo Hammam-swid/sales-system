@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useSettingsStore } from '../../store/settings'
 import { ErrorBoundary } from '../ErrorBoundary'
-import { PrintHost } from '../Receipt'
+import { PrintHost } from '../PrintHost'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 
