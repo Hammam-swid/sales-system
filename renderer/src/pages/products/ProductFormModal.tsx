@@ -1,4 +1,3 @@
-import { useState, type FormEvent } from 'react'
 import {
   PRODUCT_UNITS,
   type CategoryDto,
@@ -10,11 +9,9 @@ import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { CheckboxField, SelectField, TextField } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
+import { useProductFormModal } from '../../hooks/products/useProductFormModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { categoryOptionLabel, orderCategories } from '../../lib/categories'
-import { parseNumber } from '../../lib/format'
-import { useCurrency, useFeature } from '../../store/settings'
 
 interface ProductFormModalProps {
   // Omit to create a new product.
@@ -24,76 +21,41 @@ interface ProductFormModalProps {
   onSaved: () => void
 }
 
-function isKnownUnit(unit: string): unit is ProductUnit {
-  return (PRODUCT_UNITS as readonly string[]).includes(unit)
-}
-
 export function ProductFormModal({ product, categories, onClose, onSaved }: ProductFormModalProps) {
-  const currency = useCurrency()
-  const expiryDates = useFeature('expiryDates')
-  const warranty = useFeature('warranty')
-  const untrackedItems = useFeature('untrackedItems')
-  const [name, setName] = useState(product?.name ?? '')
-  const [barcode, setBarcode] = useState(product?.barcode ?? '')
-  const [categoryId, setCategoryId] = useState<number | null>(product?.categoryId ?? null)
-  const [unit, setUnit] = useState<ProductUnit>(
-    product && isKnownUnit(product.unit) ? product.unit : 'piece'
-  )
-  const [purchasePrice, setPurchasePrice] = useState(String(product?.purchasePrice ?? ''))
-  const [salePrice, setSalePrice] = useState(String(product?.salePrice ?? ''))
-  const [quantity, setQuantity] = useState('0')
-  const [minQuantity, setMinQuantity] = useState(String(product?.minQuantity ?? '0'))
-  const [expiryDate, setExpiryDate] = useState(product?.expiryDate ?? '')
-  const [warrantyMonths, setWarrantyMonths] = useState(String(product?.warrantyMonths ?? '0'))
-  // A shop that sells without stock (a cafe) starts new products that way.
-  const [trackStock, setTrackStock] = useState(product?.trackStock ?? !untrackedItems)
-  const [isActive, setIsActive] = useState(product?.isActive ?? true)
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const purchase = parseNumber(purchasePrice)
-  const sale = parseNumber(salePrice)
-  const belowCost = purchase !== null && sale !== null && sale < purchase
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    const min = trackStock ? parseNumber(minQuantity) : 0
-    const opening = trackStock ? parseNumber(quantity) : 0
-    const months = parseNumber(warrantyMonths)
-    if (
-      purchase === null ||
-      sale === null ||
-      min === null ||
-      (!product && opening === null) ||
-      months === null ||
-      !Number.isInteger(months) ||
-      months > MAX_WARRANTY_MONTHS
-    ) {
-      setError(t.errors.VALIDATION)
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    const result = await api('products:save', {
-      id: product?.id,
-      name,
-      barcode: barcode.trim() === '' ? null : barcode.trim(),
-      categoryId,
-      unit,
-      purchasePrice: purchase,
-      salePrice: sale,
-      minQuantity: min,
-      expiryDate: expiryDate === '' ? null : expiryDate,
-      warrantyMonths: months,
-      trackStock,
-      isActive,
-      quantity: product ? undefined : (opening ?? 0)
-    })
-    setSaving(false)
-    if (result.ok) onSaved()
-    else setError(errorText(result))
-  }
+  const {
+    currency,
+    expiryDates,
+    warranty,
+    untrackedItems,
+    name,
+    setName,
+    barcode,
+    setBarcode,
+    categoryId,
+    setCategoryId,
+    unit,
+    setUnit,
+    purchasePrice,
+    setPurchasePrice,
+    salePrice,
+    setSalePrice,
+    belowCost,
+    quantity,
+    setQuantity,
+    minQuantity,
+    setMinQuantity,
+    expiryDate,
+    setExpiryDate,
+    warrantyMonths,
+    setWarrantyMonths,
+    trackStock,
+    setTrackStock,
+    isActive,
+    setIsActive,
+    error,
+    saving,
+    submit
+  } = useProductFormModal({ product, onSaved })
 
   const numberProps = { type: 'number', min: 0, step: 'any', dir: 'ltr', className: 'text-start' } as const
 

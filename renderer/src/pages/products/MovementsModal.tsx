@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
 import type { ProductDto, StockMovementDto, StockMovementType } from '../../../../shared/catalog'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
+import { useMovementsModal } from '../../hooks/products/useMovementsModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { formatDateTime, formatQuantity } from '../../lib/format'
 
 const TYPE_LABEL: Record<StockMovementType, string> = {
@@ -22,15 +21,7 @@ function signedQuantity(movement: StockMovementDto): string {
 }
 
 export function MovementsModal({ product, onClose }: { product: ProductDto; onClose: () => void }) {
-  const [movements, setMovements] = useState<StockMovementDto[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    void api('products:movements', { productId: product.id }).then((result) => {
-      if (result.ok) setMovements(result.data)
-      else setError(errorText(result))
-    })
-  }, [product.id])
+  const { movements, error } = useMovementsModal(product.id)
 
   return (
     <Modal title={t.stock.historyFor(product.name)} size="lg" onClose={onClose}>

@@ -1,38 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { CategoryDto } from '../../../../shared/catalog'
 import { Alert } from '../../components/ui/Alert'
 import { Tabs } from '../../components/ui/Tabs'
+import { useProductsPage } from '../../hooks/products/useProductsPage'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
-import { useCan } from '../../store/auth'
 import { CategoriesTab } from './CategoriesTab'
 import { ProductsTab } from './ProductsTab'
 
-type TabId = 'products' | 'categories'
-
 export function ProductsPage() {
-  const canManage = useCan('products.manage')
-  const canAdjustStock = useCan('inventory.adjust')
-  const [tab, setTab] = useState<TabId>('products')
-  const [categories, setCategories] = useState<CategoryDto[]>([])
-  const [notice, setNotice] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadCategories = useCallback(async () => {
-    const result = await api('categories:list')
-    if (result.ok) setCategories(result.data)
-    else setError(errorText(result))
-  }, [])
-
-  useEffect(() => {
-    void loadCategories()
-  }, [loadCategories])
-
-  const tabs = [
-    { id: 'products' as const, label: t.products.tabProducts },
-    // Cashiers only browse products; category management is hidden from them.
-    ...(canManage ? [{ id: 'categories' as const, label: t.products.tabCategories }] : [])
-  ]
+  const {
+    canManage,
+    canAdjustStock,
+    tab,
+    tabs,
+    changeTab,
+    categories,
+    loadCategories,
+    notice,
+    setNotice,
+    error
+  } = useProductsPage()
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -45,10 +30,7 @@ export function ProductsPage() {
         <Tabs
           tabs={tabs}
           active={tab}
-          onChange={(id) => {
-            setTab(id)
-            setNotice(null)
-          }}
+          onChange={changeTab}
         />
       )}
 
