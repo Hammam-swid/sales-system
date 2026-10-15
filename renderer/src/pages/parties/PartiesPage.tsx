@@ -1,30 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Banknote, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import type { PartyDto } from '../../../../shared/parties'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
-import { TextField } from '../../components/ui/Field'
 import { IconButton } from '../../components/ui/IconButton'
-import { Modal } from '../../components/ui/Modal'
+import { usePartiesPage } from '../../hooks/parties/usePartiesPage'
 import { t } from '../../i18n'
-import { errorText } from '../../lib/api'
-import { formatMoney, parseNumber } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
+import { formatMoney } from '../../lib/format'
 import type { PartyKind } from './partyKinds'
+import { PartyFormModal } from './PartyFormModal'
+import { PartyPaymentModal } from './PartyPaymentModal'
 import { StatementModal } from './StatementModal'
-
-const SEARCH_DEBOUNCE_MS = 250
-
-type Dialog =
-  | { kind: 'create' }
-  | { kind: 'edit'; party: PartyDto }
-  | { kind: 'pay'; party: PartyDto }
-  | { kind: 'statement'; party: PartyDto }
-  | { kind: 'delete'; party: PartyDto }
-  | null
 
 interface PartiesPageProps {
   kind: PartyKind
@@ -35,50 +22,22 @@ interface PartiesPageProps {
 // One screen for both customers and suppliers.
 export function PartiesPage({ kind, canManage }: PartiesPageProps) {
   const { labels } = kind
-  const currency = useCurrency()
-  const [searchInput, setSearchInput] = useState('')
-  const [parties, setParties] = useState<PartyDto[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [dialog, setDialog] = useState<Dialog>(null)
-  const requestId = useRef(0)
-
-  const load = useCallback(
-    async (search: string) => {
-      const current = ++requestId.current
-      const result = await kind.list(search)
-      if (current !== requestId.current) return
-      if (result.ok) {
-        setParties(result.data)
-        setError(null)
-      } else {
-        setError(errorText(result))
-      }
-    },
-    [kind]
-  )
-
-  useEffect(() => {
-    const timer = setTimeout(() => void load(searchInput.trim()), SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [searchInput, load])
-
-  const refresh = () => void load(searchInput.trim())
-
-  const finish = (message: string) => {
-    setDialog(null)
-    setNotice(message)
-    refresh()
-  }
-
-  const removeParty = async (party: PartyDto) => {
-    const result = await kind.remove(party.id)
-    if (!result.ok) return errorText(result)
-    finish(t.parties.deleted)
-  }
-
-  const totalBalance = (parties ?? []).reduce((sum, party) => sum + party.balance, 0)
-  const columnCount = canManage ? 5 : 4
+  const {
+    currency,
+    searchInput,
+    setSearchInput,
+    parties,
+    error,
+    notice,
+    dialog,
+    openDialog,
+    closeDialog,
+    refresh,
+    finish,
+    removeParty,
+    totalBalance,
+    columnCount
+  } = usePartiesPage(kind, canManage)
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -112,7 +71,7 @@ export function PartiesPage({ kind, canManage }: PartiesPageProps) {
         {canManage && (
           <Button
             icon={<Plus aria-hidden className="size-4" />}
-            onClick={() => setDialog({ kind: 'create' })}
+            onClick={() => openDialog({ kind: 'create' })}
           >
             {labels.add}
           </Button>
@@ -171,23 +130,23 @@ export function PartiesPage({ kind, canManage }: PartiesPageProps) {
                         icon={Banknote}
                         label={labels.pay}
                         disabled={party.balance <= 0}
-                        onClick={() => setDialog({ kind: 'pay', party })}
+                        onClick={() => openDialog({ kind: 'pay', party })}
                       />
                       <IconButton
                         icon={FileText}
                         label={t.parties.statement}
-                        onClick={() => setDialog({ kind: 'statement', party })}
+                        onClick={() => openDialog({ kind: 'statement', party })}
                       />
                       <IconButton
                         icon={Pencil}
                         label={t.parties.edit}
-                        onClick={() => setDialog({ kind: 'edit', party })}
+                        onClick={() => openDialog({ kind: 'edit', party })}
                       />
                       <IconButton
                         icon={Trash2}
                         label={t.parties.delete}
                         tone="danger"
-                        onClick={() => setDialog({ kind: 'delete', party })}
+                        onClick={() => openDialog({ kind: 'delete', party })}
                       />
                     </div>
                   </td>
@@ -202,7 +161,7 @@ export function PartiesPage({ kind, canManage }: PartiesPageProps) {
         <PartyFormModal
           kind={kind}
           party={dialog.kind === 'edit' ? dialog.party : undefined}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
           onSaved={() => finish(t.parties.saved)}
         />
       )}
@@ -210,7 +169,7 @@ export function PartiesPage({ kind, canManage }: PartiesPageProps) {
         <PartyPaymentModal
           kind={kind}
           party={dialog.party}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
           onSaved={() => finish(t.parties.paymentSaved)}
         />
       )}
@@ -219,7 +178,7 @@ export function PartiesPage({ kind, canManage }: PartiesPageProps) {
           kind={kind}
           partyId={dialog.party.id}
           onChanged={refresh}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
         />
       )}
       {dialog?.kind === 'delete' && (
@@ -228,154 +187,9 @@ export function PartiesPage({ kind, canManage }: PartiesPageProps) {
           body={labels.deleteBody(dialog.party.name)}
           confirmLabel={t.parties.delete}
           onConfirm={() => removeParty(dialog.party)}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
         />
       )}
     </div>
-  )
-}
-
-interface PartyFormModalProps {
-  kind: PartyKind
-  // Omit to create.
-  party?: PartyDto
-  onClose: () => void
-  onSaved: () => void
-}
-
-function PartyFormModal({ kind, party, onClose, onSaved }: PartyFormModalProps) {
-  const [name, setName] = useState(party?.name ?? '')
-  const [phone, setPhone] = useState(party?.phone ?? '')
-  const [address, setAddress] = useState(party?.address ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSaving(true)
-    setError(null)
-    const result = await kind.save({
-      id: party?.id,
-      name,
-      phone: phone.trim() === '' ? null : phone.trim(),
-      address: address.trim() === '' ? null : address.trim()
-    })
-    setSaving(false)
-    if (result.ok) onSaved()
-    else setError(errorText(result))
-  }
-
-  return (
-    <Modal title={party ? kind.labels.editTitle : kind.labels.add} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        {error && <Alert>{error}</Alert>}
-        <TextField
-          label={t.parties.name}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          maxLength={100}
-          autoFocus
-          required
-        />
-        <TextField
-          label={t.parties.phone}
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          maxLength={30}
-          type="tel"
-          dir="ltr"
-          className="text-start"
-        />
-        <TextField
-          label={t.parties.address}
-          value={address}
-          onChange={(event) => setAddress(event.target.value)}
-          maxLength={200}
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="submit" loading={saving}>
-            {party ? t.common.save : t.common.add}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
-
-interface PartyPaymentModalProps {
-  kind: PartyKind
-  party: PartyDto
-  onClose: () => void
-  onSaved: () => void
-}
-
-function PartyPaymentModal({ kind, party, onClose, onSaved }: PartyPaymentModalProps) {
-  const currency = useCurrency()
-  const [amount, setAmount] = useState('')
-  const [note, setNote] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const value = parseNumber(amount)
-  const exceeds = value !== null && value > party.balance
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (value === null || value <= 0 || exceeds) return
-    setSaving(true)
-    setError(null)
-    const result = await kind.pay({
-      id: party.id,
-      amount: value,
-      note: note.trim() === '' ? null : note.trim()
-    })
-    setSaving(false)
-    if (result.ok) onSaved()
-    else setError(errorText(result))
-  }
-
-  return (
-    <Modal title={kind.labels.payTitle(party.name)} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        {error && <Alert>{error}</Alert>}
-        <dl className="type-body-sm flex items-center justify-between rounded-md bg-surface px-4 py-3">
-          <dt className="text-ink-muted">{kind.labels.currentBalance}</dt>
-          <dd className="type-label-strong tabular-nums">{formatMoney(party.balance, currency)}</dd>
-        </dl>
-        <TextField
-          label={`${t.parties.amount} (${currency})`}
-          type="number"
-          min={0}
-          step="any"
-          dir="ltr"
-          className="text-start"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          error={exceeds ? t.errors.PAYMENT_EXCEEDS : undefined}
-          autoFocus
-          required
-        />
-        <Button variant="secondary" size="sm" onClick={() => setAmount(String(party.balance))}>
-          {t.parties.payAll}
-        </Button>
-        <TextField
-          label={t.parties.noteOptional}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          maxLength={200}
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="submit" loading={saving} disabled={exceeds}>
-            {kind.labels.pay}
-          </Button>
-        </div>
-      </form>
-    </Modal>
   )
 }
