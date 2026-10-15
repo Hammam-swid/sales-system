@@ -1,21 +1,14 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { DatabaseBackup, FolderOpen, RotateCcw } from 'lucide-react'
-import type {
-  BackupConfig,
-  BackupFile,
-  BackupInterval,
-  BackupStatus
-} from '../../../../shared/settings'
+import type { BackupFile, BackupInterval } from '../../../../shared/settings'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { CheckboxField, SelectField, TextField } from '../../components/ui/Field'
+import { useBackupTab } from '../../hooks/settings/useBackupTab'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { formatDateTime } from '../../lib/format'
-import { useAuthStore } from '../../store/auth'
 
 function kindLabel(file: BackupFile): string {
   if (file.automatic) return t.settings.kindAuto
@@ -26,87 +19,24 @@ function megabytes(bytes: number): string {
   return t.settings.megabytes((bytes / (1024 * 1024)).toFixed(2))
 }
 
-// null = restore from a file the user picks.
-type RestoreTarget = { name: string } | 'file' | null
-
 export function BackupTab({ onNotice }: { onNotice: (message: string | null) => void }) {
-  const isOwner = useAuthStore((state) => state.user?.role === 'owner')
-  const [status, setStatus] = useState<BackupStatus | null>(null)
-  const [config, setConfig] = useState<BackupConfig | null>(null)
-  const [keep, setKeep] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState<'config' | 'folder' | 'saveAs' | null>(null)
-  const [restoreTarget, setRestoreTarget] = useState<RestoreTarget>(null)
-
-  const apply = (next: BackupStatus) => {
-    setStatus(next)
-    setConfig(next.config)
-    setKeep(String(next.config.keep))
-  }
-
-  const load = useCallback(async () => {
-    const result = await api('backup:status')
-    if (result.ok) apply(result.data)
-    else setError(errorText(result))
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const saveConfig = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!config) return
-    const keepCount = Number(keep)
-    if (!Number.isInteger(keepCount) || keepCount < 1 || keepCount > 365) {
-      setError(t.errors.VALIDATION)
-      return
-    }
-    setBusy('config')
-    setError(null)
-    onNotice(null)
-    const result = await api('backup:saveConfig', { ...config, keep: keepCount })
-    setBusy(null)
-    if (result.ok) {
-      apply(result.data)
-      onNotice(t.settings.configSaved)
-    } else {
-      setError(errorText(result))
-    }
-  }
-
-  const chooseFolder = async () => {
-    const result = await api('backup:chooseFolder')
-    if (!result.ok) setError(errorText(result))
-    else if (result.data.path && config) setConfig({ ...config, directory: result.data.path })
-  }
-
-  const backup = async (target: 'folder' | 'saveAs') => {
-    setBusy(target)
-    setError(null)
-    onNotice(null)
-    const result = await api('backup:create', { target })
-    setBusy(null)
-    if (!result.ok) {
-      setError(errorText(result))
-      return
-    }
-    if (result.data) onNotice(t.settings.backupCreated(result.data.name))
-    void load()
-  }
-
-  const restore = async (target: Exclude<RestoreTarget, null>) => {
-    const result = await api('backup:restore', target === 'file' ? {} : { name: target.name })
-    if (!result.ok) return errorText(result)
-    if (!result.data.restored) {
-      // The file picker was cancelled.
-      setRestoreTarget(null)
-      return
-    }
-    // The data underneath every screen has changed and everyone is signed out: start clean.
-    window.location.hash = '#/'
-    window.location.reload()
-  }
+  const {
+    isOwner,
+    status,
+    config,
+    updateConfig,
+    keep,
+    setKeep,
+    error,
+    busy,
+    saveConfig,
+    chooseFolder,
+    backup,
+    restoreTarget,
+    askRestore,
+    cancelRestore,
+    restore
+  } = useBackupTab(onNotice)
 
   if (!status || !config) {
     return error ? (
@@ -126,14 +56,14 @@ export function BackupTab({ onNotice }: { onNotice: (message: string | null) => 
           <CheckboxField
             label={t.settings.autoEnabled}
             checked={config.enabled}
-            onChange={(event) => setConfig({ ...config, enabled: event.target.checked })}
+            onChange={(event) => updateConfig({ enabled: event.target.checked })}
           />
           <div className="grid grid-cols-2 gap-4">
             <SelectField
               label={t.settings.interval}
               value={config.interval}
               onChange={(event) =>
-                setConfig({ ...config, interval: event.target.value as BackupInterval })
+                updateConfig({ interval: event.target.value as BackupInterval })
               }
               disabled={!config.enabled}
             >
@@ -160,7 +90,7 @@ export function BackupTab({ onNotice }: { onNotice: (message: string | null) => 
                 label={t.settings.directory}
                 hint={t.settings.directoryHint}
                 value={config.directory}
-                onChange={(event) => setConfig({ ...config, directory: event.target.value })}
+                onChange={(event) => updateConfig({ directory: event.target.value })}
                 dir="ltr"
                 className="text-start"
                 spellCheck={false}
@@ -221,7 +151,7 @@ export function BackupTab({ onNotice }: { onNotice: (message: string | null) => 
               variant="secondary"
               size="sm"
               icon={<RotateCcw aria-hidden className="size-4" />}
-              onClick={() => setRestoreTarget('file')}
+              onClick={() => askRestore('file')}
             >
               {t.settings.restoreFromFile}
             </Button>
@@ -263,7 +193,7 @@ export function BackupTab({ onNotice }: { onNotice: (message: string | null) => 
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setRestoreTarget({ name: file.name })}
+                          onClick={() => askRestore({ name: file.name })}
                         >
                           {t.settings.restore}
                         </Button>
@@ -287,7 +217,7 @@ export function BackupTab({ onNotice }: { onNotice: (message: string | null) => 
           }
           confirmLabel={t.settings.restoreConfirm}
           onConfirm={() => restore(restoreTarget)}
-          onClose={() => setRestoreTarget(null)}
+          onClose={() => cancelRestore()}
         />
       )}
     </div>
