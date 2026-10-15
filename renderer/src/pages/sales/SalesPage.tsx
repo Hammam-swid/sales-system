@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { Eye, Search } from 'lucide-react'
 import type {
-  ListSalesResponse,
   PaymentStatus,
   SaleStatus,
   SaleStatusFilter
@@ -11,15 +9,11 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { IconButton } from '../../components/ui/IconButton'
+import { useSalesPage } from '../../hooks/sales/useSalesPage'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
 import { cn } from '../../lib/cn'
 import { formatDateTime, formatMoney } from '../../lib/format'
-import { useCurrency } from '../../store/settings'
 import { SaleDetailModal } from './SaleDetailModal'
-
-const PAGE_SIZE = 25
-const SEARCH_DEBOUNCE_MS = 250
 
 const CONTROL =
   'type-body-sm h-11 rounded-sm border border-border-strong bg-bg px-3 text-ink placeholder:text-ink-muted'
@@ -38,42 +32,26 @@ export const STATUS_TONE: Record<SaleStatus, 'neutral' | 'brand' | 'warning' | '
 }
 
 export function SalesPage() {
-  const currency = useCurrency()
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<SaleStatusFilter>('all')
-  const [page, setPage] = useState(1)
-  const [data, setData] = useState<ListSalesResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [openId, setOpenId] = useState<number | null>(null)
-  const requestId = useRef(0)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim())
-      setPage(1)
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [searchInput])
-
-  const load = useCallback(async () => {
-    const current = ++requestId.current
-    const result = await api('sales:list', { search, status, page, pageSize: PAGE_SIZE })
-    if (current !== requestId.current) return
-    if (result.ok) {
-      setData(result.data)
-      setError(null)
-    } else {
-      setError(errorText(result))
-    }
-  }, [search, status, page])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const total = data?.total ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const {
+    currency,
+    searchInput,
+    setSearchInput,
+    status,
+    changeStatus,
+    data,
+    error,
+    total,
+    page,
+    pageCount,
+    rangeFrom,
+    rangeTo,
+    previousPage,
+    nextPage,
+    openId,
+    openSale,
+    closeSale,
+    reload
+  } = useSalesPage()
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -100,10 +78,7 @@ export function SalesPage() {
         </div>
         <select
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value as SaleStatusFilter)
-            setPage(1)
-          }}
+          onChange={(event) => changeStatus(event.target.value as SaleStatusFilter)}
           aria-label={t.sales.status}
           className={CONTROL}
         >
@@ -167,7 +142,7 @@ export function SalesPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end">
-                    <IconButton icon={Eye} label={t.sales.view} onClick={() => setOpenId(sale.id)} />
+                    <IconButton icon={Eye} label={t.sales.view} onClick={() => openSale(sale.id)} />
                   </div>
                 </td>
               </tr>
@@ -179,18 +154,14 @@ export function SalesPage() {
       {total > 0 && (
         <div className="flex items-center justify-between">
           <p className="type-body-sm text-ink-muted tabular-nums">
-            {t.products.pageInfo(
-              (page - 1) * PAGE_SIZE + 1,
-              Math.min(page * PAGE_SIZE, total),
-              total
-            )}
+            {t.products.pageInfo(rangeFrom, rangeTo, total)}
           </p>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
               disabled={page <= 1}
-              onClick={() => setPage((value) => value - 1)}
+              onClick={previousPage}
             >
               {t.products.previous}
             </Button>
@@ -198,7 +169,7 @@ export function SalesPage() {
               variant="secondary"
               size="sm"
               disabled={page >= pageCount}
-              onClick={() => setPage((value) => value + 1)}
+              onClick={nextPage}
             >
               {t.products.next}
             </Button>
@@ -209,8 +180,8 @@ export function SalesPage() {
       {openId !== null && (
         <SaleDetailModal
           saleId={openId}
-          onChanged={load}
-          onClose={() => setOpenId(null)}
+          onChanged={reload}
+          onClose={closeSale}
         />
       )}
     </div>

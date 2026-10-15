@@ -1,28 +1,13 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Printer, Undo2 } from 'lucide-react'
-import {
-  returnedValue,
-  roundTo,
-  type ReturnSaleResponse,
-  type SaleDto
-} from '../../../../shared/sales'
 import { formatOrderNumber, warrantyEnd } from '../../../../shared/store'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { useSaleDetailModal } from '../../hooks/sales/useSaleDetailModal'
 import { t } from '../../i18n'
-import { api, errorText } from '../../lib/api'
-import {
-  formatDate,
-  formatDateTime,
-  formatMoney,
-  formatQuantity,
-  parseNumber
-} from '../../lib/format'
-import { useCan } from '../../store/auth'
-import { usePrintStore } from '../../store/print'
-import { useCurrency } from '../../store/settings'
+import { formatDate, formatDateTime, formatQuantity } from '../../lib/format'
+import { ReturnForm } from './ReturnForm'
 import { PAYMENT_TONE, STATUS_TONE } from './SalesPage'
 
 interface SaleDetailModalProps {
@@ -33,46 +18,27 @@ interface SaleDetailModalProps {
 }
 
 export function SaleDetailModal({ saleId, onChanged, onClose }: SaleDetailModalProps) {
-  const currency = useCurrency()
-  const canReturn = useCan('sales.return')
-  const print = usePrintStore((state) => state.print)
-  const money = (value: number) => formatMoney(value, currency)
-
-  const [sale, setSale] = useState<SaleDto | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [returning, setReturning] = useState(false)
-  const [outcome, setOutcome] = useState<ReturnSaleResponse | null>(null)
-
-  const load = useCallback(async () => {
-    const result = await api('sales:get', { id: saleId })
-    if (result.ok) setSale(result.data)
-    else setError(errorText(result))
-  }, [saleId])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const title = sale ? t.sales.detailTitle(sale.invoiceNumber) : t.sales.title
+  const {
+    money,
+    canReturn,
+    print,
+    sale,
+    error,
+    title,
+    returning,
+    startReturn,
+    cancelReturn,
+    finishReturn,
+    outcome,
+    remaining,
+    hasReturns
+  } = useSaleDetailModal({ saleId, onChanged })
 
   if (sale && returning) {
     return (
-      <ReturnForm
-        sale={sale}
-        onCancel={() => setReturning(false)}
-        onClose={onClose}
-        onDone={(result) => {
-          setSale(result.sale)
-          setOutcome(result)
-          setReturning(false)
-          onChanged()
-        }}
-      />
+      <ReturnForm sale={sale} onCancel={cancelReturn} onClose={onClose} onDone={finishReturn} />
     )
   }
-
-  const remaining = sale ? Math.max(0, roundTo(sale.total - sale.paidAmount, 2)) : 0
-  const hasReturns = sale ? sale.items.some((item) => item.returnedQuantity > 0) : false
 
   return (
     <Modal title={title} size="lg" onClose={onClose}>
@@ -215,10 +181,7 @@ export function SaleDetailModal({ saleId, onChanged, onClose }: SaleDetailModalP
               <Button
                 variant="secondary"
                 icon={<Undo2 aria-hidden className="size-4" />}
-                onClick={() => {
-                  setOutcome(null)
-                  setReturning(true)
-                }}
+                onClick={startReturn}
               >
                 {t.sales.return}
               </Button>
@@ -229,133 +192,6 @@ export function SaleDetailModal({ saleId, onChanged, onClose }: SaleDetailModalP
           </div>
         </div>
       )}
-    </Modal>
-  )
-}
-
-interface ReturnFormProps {
-  sale: SaleDto
-  onCancel: () => void
-  onClose: () => void
-  onDone: (result: ReturnSaleResponse) => void
-}
-
-function ReturnForm({ sale, onCancel, onClose, onDone }: ReturnFormProps) {
-  const currency = useCurrency()
-  const returnable = sale.items
-    .map((item) => ({ item, max: roundTo(item.quantity - item.returnedQuantity, 3) }))
-    .filter(({ max }) => max > 0)
-
-  const [quantities, setQuantities] = useState<Record<number, string>>({})
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const chosen = returnable
-    .map(({ item, max }) => ({ item, max, quantity: parseNumber(quantities[item.id] ?? '') ?? 0 }))
-    .filter(({ quantity }) => quantity > 0)
-  const invalid = chosen.some(({ quantity, max }) => quantity > max)
-
-  // Same formula the main process uses, so the preview matches the result to the cent.
-  const preview = roundTo(
-    returnedValue(
-      sale,
-      sale.items.map((item) => ({
-        ...item,
-        returnedQuantity:
-          item.returnedQuantity + (chosen.find((entry) => entry.item.id === item.id)?.quantity ?? 0)
-      }))
-    ) - sale.returnedValue,
-    2
-  )
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (chosen.length === 0 || invalid) return
-    setSaving(true)
-    setError(null)
-    const result = await api('sales:return', {
-      saleId: sale.id,
-      items: chosen.map(({ item, quantity }) => ({ saleItemId: item.id, quantity }))
-    })
-    setSaving(false)
-    if (result.ok) onDone(result.data)
-    else setError(errorText(result))
-  }
-
-  return (
-    <Modal title={t.sales.returnTitle(sale.invoiceNumber)} size="lg" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        {error && <Alert>{error}</Alert>}
-
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              setQuantities(
-                Object.fromEntries(returnable.map(({ item, max }) => [item.id, String(max)]))
-              )
-            }
-          >
-            {t.sales.returnAll}
-          </Button>
-        </div>
-
-        <ul className="max-h-[45vh] space-y-2 overflow-y-auto">
-          {returnable.map(({ item, max }) => {
-            const value = parseNumber(quantities[item.id] ?? '') ?? 0
-            return (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="type-label text-ink">{item.productName}</p>
-                  <p className="type-caption text-ink-muted tabular-nums">
-                    {t.sales.returnable(formatQuantity(max))}
-                  </p>
-                </div>
-                <input
-                  type="number"
-                  min={0}
-                  max={max}
-                  step="any"
-                  dir="ltr"
-                  placeholder="0"
-                  value={quantities[item.id] ?? ''}
-                  onChange={(event) =>
-                    setQuantities((current) => ({ ...current, [item.id]: event.target.value }))
-                  }
-                  aria-label={`${t.sales.returnQuantity}: ${item.productName}`}
-                  aria-invalid={value > max ? true : undefined}
-                  className="type-body-sm h-10 w-24 rounded-sm border border-border-strong bg-bg px-2 text-center text-ink tabular-nums aria-[invalid=true]:border-danger"
-                />
-              </li>
-            )
-          })}
-        </ul>
-
-        {invalid && <Alert>{t.errors.RETURN_EXCEEDS}</Alert>}
-
-        <div className="flex items-baseline justify-between rounded-md bg-surface px-4 py-3">
-          <span className="type-label text-ink-muted">{t.sales.returnValue}</span>
-          <span className="type-h3 tabular-nums">{formatMoney(Math.max(preview, 0), currency)}</span>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={onCancel}>
-            {t.common.cancel}
-          </Button>
-          <Button
-            type="submit"
-            variant="danger"
-            loading={saving}
-            disabled={chosen.length === 0 || invalid}
-          >
-            {t.sales.confirmReturn}
-          </Button>
-        </div>
-      </form>
     </Modal>
   )
 }
