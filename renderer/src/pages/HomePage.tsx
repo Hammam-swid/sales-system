@@ -1,31 +1,14 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { AppInfo } from '../../../shared/ipc'
-import { can } from '../../../shared/permissions'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
+import { useHomePage } from '../hooks/useHomePage'
 import { t } from '../i18n'
-import { api } from '../lib/api'
-import { BUILT_PATHS, NAV_ITEMS } from '../navigation'
-import { useAuthStore, useCan } from '../store/auth'
+import { BUILT_PATHS } from '../navigation'
 
 export function HomePage() {
-  const user = useAuthStore((state) => state.user)
-  const canSeeSystemInfo = useCan('settings.manage')
-  const [info, setInfo] = useState<AppInfo | null>(null)
-
-  useEffect(() => {
-    if (!canSeeSystemInfo) return
-    void api('app:info').then((result) => {
-      if (result.ok) setInfo(result.data)
-    })
-  }, [canSeeSystemInfo])
+  const { user, info, shortcuts } = useHomePage()
 
   if (!user) return null
-
-  const shortcuts = NAV_ITEMS.filter(
-    (item) => item.path !== '/' && (!item.permission || can(user.role, item.permission))
-  )
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
